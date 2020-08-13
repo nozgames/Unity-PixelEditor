@@ -1,0 +1,119 @@
+
+
+.pixelEditor {
+    position: absolute;
+    bottom:0px;
+    top:0px;
+    right: 0px;
+    left: 0px;
+}
+
+.workspace {
+    flex-grow: 1;
+    width: 100%;
+    cursor: pan;
+    overflow: hidden;
+}
+
+.workspaceCursor {
+    position: Absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.cursorArrow
+{
+    cursor: arrow;
+}
+
+.cursorFPS
+{
+    cursor: fps;
+}
+
+.vscroll
+{
+    position:Absolute;
+    right:2px; 
+    top:0px; 
+    bottom:12px; 
+}
+
+.hscroll
+{
+    position:Absolute;
+    right:12px; 
+    left:0px; 
+    bottom:2px; 
+}
+
+.layers
+{
+    position: Absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    height: 100px;
+    border-radius: 6px;
+}
+
+.toolbar2 {
+    position: Absolute;
+    left: 20px;
+    top: 20px;
+    border-radius: 6px;
+    padding: 5px;
+}
+
+.imageTest {
+position: Absolute;
+left: 400px;
+top: 50px;
+}
+
+.toolbar>Image
+{
+    width: 16px;
+    height: 16px;
+}
+
+.toolbar>Button
+{
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+}
+
+.selectionTool>Image
+{
+    --unity-image: resource("Assets/PE/Editor/Editor Resources/SelectionTool.psd");
+}
+
+.pencilTool>Image
+{
+    --unity-image: resource("Assets/PE/Editor/Editor Resources/PencilTool.psd");
+}
+
+.eraserTool>Image
+{
+    --unity-image: resource("Assets/PE/Editor/Editor Resources/EraserTool.psd");
+}
+
+
+.colorTool {
+    margin-top: 5px;
+    margin-left: 4px;
+    width: 32px;
+    padding: 0px 0px;
+}
+
+.colorTool>ColorField
+{
+    margin: -1px;
+}
+
+.toolbar>.zoom {
+    width:100px;
+}

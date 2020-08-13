@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<engine:UXML
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:engine="UnityEngine.UIElements"
+    xmlns:editor="UnityEditor.UIElements"
+    xsi:noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd"
+>
+  
+  <engine:VisualElement class="pixelEditor">
+    <engine:VisualElement name="workspace" class="workspace"/>
+    <engine:Scroller class="vscroll" direction="Vertical"/>
+    <engine:Scroller class="hscroll" direction="Horizontal"/>
+    <engine:Box class="layers">
+    </engine:Box>
+    <engine:Box class="toolbar" name="toolbar">
+      <engine:Button name="selectionTool" class="selectionTool">
+        <engine:Image/>
+      </engine:Button>
+      <engine:Button name="pencilTool" class="pencilTool" style="margin-top:5px;">
+        <engine:Image/>
+      </engine:Button>
+      <engine:Button name="eraserTool" class="eraserTool" style="margin-top:5px;">
+        <engine:Image/>
+      </engine:Button>
+      <engine:VisualElement class="colorTool unity-button">
+        <editor:ColorField name="colorTool"/>
+      </engine:VisualElement>
+
+      <engine:Button name="saveButton"/>
+
+    </engine:Box>
+  </engine:VisualElement>
+
+
+</engine:UXML>
