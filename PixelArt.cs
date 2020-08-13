@@ -26,6 +26,7 @@ namespace NoZ.PixelEditor
             return path;
         }
 
+#if UNITY_EDITOR
         [MenuItem("Assets/Create/PixelArt")]
         private static void CreatePixelArt()
         {
@@ -48,10 +49,6 @@ namespace NoZ.PixelEditor
             
             AssetDatabase.Refresh();
         }
-
-        public void Serialize()
-        {
-
-        }
+#endif
     }
 }

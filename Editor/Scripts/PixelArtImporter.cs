@@ -1,15 +1,12 @@
-﻿
-using System.IO;
+﻿using System.IO;
 using UnityEngine;
-using UnityEditor.Experimental.AssetImporters;
-using NoZ.PixelEditor;
 
-namespace Assets.PE.Editor
+namespace NoZ.PixelEditor
 {
-    [ScriptedImporter(1, "pixelart")]
-    public class PixelArtImporter : ScriptedImporter
+    [UnityEditor.AssetImporters.ScriptedImporter(1, "pixelart")]
+    public class PixelArtImporter : UnityEditor.AssetImporters.ScriptedImporter
     {
-        public override void OnImportAsset(AssetImportContext ctx)
+        public override void OnImportAsset(UnityEditor.AssetImporters.AssetImportContext ctx)
         {
             using (var reader = new BinaryReader(File.OpenRead(ctx.assetPath)))
             {
