@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
+using System.Linq;
 
 namespace NoZ.PixelEditor
 {
@@ -16,6 +17,8 @@ namespace NoZ.PixelEditor
         private ColorField _foregroundColor = null;
         private ColorField _backgroundColor = null;
         private VisualElement _workspace = null;
+        private VisualElement _toolbox = null;
+        private VisualElement _layers = null;
         private WorkspaceCursorManager _workspaceCursor = null;
         private Slider _zoomSlider = null;
 
@@ -27,6 +30,7 @@ namespace NoZ.PixelEditor
         private int _drawButton = -1;
         private Vector2 _drawStart;
         private PETool _currentTool = null;
+        private PELayer _currentLayer = null;
         private Vector2 _lastMousePosition;
 
         private PixelArt _pixelArt;
@@ -50,7 +54,24 @@ namespace NoZ.PixelEditor
 
         public PEAnimation CurrentAnimation => CurrentFrame?.animation;
 
-        public PELayer CurrentLayer { get; private set; }
+        public PELayer CurrentLayer {
+            get => _currentLayer;
+            set {
+                if (_currentLayer == value)
+                    return;
+
+                _currentLayer = value;
+
+                foreach(var child in _layers.Children())
+                {
+                    var layer = (PELayer)child.userData;
+                    if (layer == _currentLayer)
+                        child.AddToClassList("selected");
+                    else
+                        child.RemoveFromClassList("selected");
+                }
+            }
+        }
 
         public PEFrame CurrentFrame { get; private set; }
 
@@ -82,6 +103,14 @@ namespace NoZ.PixelEditor
                     _currentTool.MarkDirtyRepaint();
                 }
                 
+                foreach(var child in _toolbox.Children())
+                {
+                    if ((PETool)child.userData == _currentTool)
+                        child.AddToClassList("selected");
+                    else
+                        child.RemoveFromClassList("selected");
+                }
+
                 RefreshCursor();
             }
         }
@@ -125,16 +154,6 @@ namespace NoZ.PixelEditor
             _zoomSlider.AddToClassList("zoom");
             _zoomSlider.RegisterValueChangedCallback(OnZoomValueChanged);
             toolbar.Add(_zoomSlider);
-
-            _foregroundColor = new ColorField();
-            _foregroundColor.showEyeDropper = false;
-            _foregroundColor.value = Color.white;
-            toolbar.Add(_foregroundColor);
-
-            _backgroundColor = new ColorField();
-            _backgroundColor.showEyeDropper = false;
-            _backgroundColor.value = Color.white;
-            toolbar.Add(_backgroundColor);
 
             var toolbarSpacer = new VisualElement();
             toolbarSpacer.style.flexGrow = 1.0f;
@@ -184,13 +203,11 @@ namespace NoZ.PixelEditor
             _toolSelection = new PESelectionTool(this);            
             _workspace.Add(_toolSelection);
 
+            CreateLayersPopup();
+            CreateToolBox();
+
             // Set default tool to pencil
             CurrentTool = _toolPencil;
-
-            // Create layers popup
-            var layers = new UnityEngine.UIElements.PopupWindow();
-            layers.AddToClassList("layers");
-            _workspace.Add(layers);
 
             Undo.undoRedoPerformed += OnUndoRedo;
 
@@ -244,6 +261,16 @@ namespace NoZ.PixelEditor
         {
             switch (evt.keyCode)
             {
+                case KeyCode.X:
+                {
+                    var swap = ForegroundColor;
+                    ForegroundColor = BackgroundColor;
+                    BackgroundColor = swap;
+                    evt.StopImmediatePropagation();
+                    break;
+                }
+
+
                 case KeyCode.I:
                     CurrentTool = _toolEyeDropper;
                     evt.StopImmediatePropagation();
@@ -290,6 +317,8 @@ namespace NoZ.PixelEditor
             CurrentLayer = CurrentFile.layers[0];
             CurrentFrame = CurrentFile.frames[0];
             CurrentTexture = file.FindTexture(CurrentFrame, CurrentLayer);
+
+            UpdateLayers();
         }
 
         private void Save()
@@ -411,6 +440,106 @@ namespace NoZ.PixelEditor
             }
 
             CurrentTool.SetCursor(canvasPosition);
+        }
+
+        private void CreateToolBox ()
+        {
+            _toolbox = new UnityEngine.UIElements.PopupWindow();
+            _toolbox.AddToClassList("toolbox");
+
+            CreateToolBoxButton(_toolSelection, "Assets/PixelEditor/Editor/Icons/SelectionTool.psd", "Rectangular Marquee Tool (M)");
+            CreateToolBoxButton(_toolPencil, "Assets/PixelEditor/Editor/Icons/PencilTool.psd", "Pencil Tool (B)");
+            CreateToolBoxButton(_toolEraser, "Assets/PixelEditor/Editor/Icons/EraserTool.psd", "Eraser Tool (E)");
+            CreateToolBoxButton(_toolEyeDropper, "Assets/PixelEditor/Editor/Icons/EyeDropperTool.psd", "Eyedropper Tool (I)");
+
+            _foregroundColor = new ColorField();
+            _foregroundColor.showEyeDropper = false;
+            _foregroundColor.value = Color.white;
+            _toolbox.Add(_foregroundColor);
+
+            _backgroundColor = new ColorField();
+            _backgroundColor.showEyeDropper = false;
+            _backgroundColor.value = Color.white;
+            _toolbox.Add(_backgroundColor);
+
+            _workspace.Add(_toolbox);
+        }
+
+        private void CreateToolBoxButton(PETool tool, string image, string tooltip)
+        {
+            var button = new Image();
+            button.image = AssetDatabase.LoadAssetAtPath<Texture>(image);
+            button.AddManipulator(new Clickable(() => CurrentTool = tool));
+            button.userData = tool;
+            button.tooltip = tooltip;
+            _toolbox.Add(button);
+        }
+
+        private void CreateLayersPopup ()
+        {
+            var popup = new UnityEngine.UIElements.PopupWindow();
+            popup.text = "Layers";
+            popup.AddToClassList("layersPopup");
+            _workspace.Add(popup);
+
+            var toolbar = new VisualElement();
+            toolbar.AddToClassList("layersToolbar");
+            popup.Add(toolbar);
+
+            var addLayerButton = new Button();
+            addLayerButton.text = "Add";
+            addLayerButton.clickable.clicked += () =>
+            {
+                CurrentFile.layers.Add(new PELayer
+                {
+                    id = System.Guid.NewGuid().ToString(),
+                    name = $"Layer {CurrentFile.layers.Count}",
+                    opacity = 1.0f,
+                    order = CurrentFile.layers.Count
+                });
+                UpdateLayers();
+                Canvas.MarkDirtyRepaint();
+            };
+            toolbar.Add(addLayerButton);
+
+            _layers = new VisualElement();
+            _layers.AddToClassList("layers");
+            popup.Add(_layers);
+
+            UpdateLayers();
+        }
+
+        private void UpdateLayers()
+        {
+            _layers.Clear();
+
+            if (CurrentFile == null)
+                return;
+
+            foreach(var layer in CurrentFile.layers.OrderBy(l => l.order))
+            {
+                var layerElemnet = new VisualElement();
+                layerElemnet.AddToClassList("layer");
+                layerElemnet.userData = layer;
+                layerElemnet.AddManipulator(new Clickable(() =>
+                {
+                    CurrentLayer = layer;
+                }));
+
+                if (layer.order == 0)
+                layerElemnet.AddToClassList("selected");
+
+                var layerToggle = new Toggle();
+                layerElemnet.Add(layerToggle);
+
+                var layerImage = new Image();
+                layerElemnet.Add(layerImage);
+
+                var layerName = new Label(layer.name);
+                layerElemnet.Add(layerName);
+                
+                _layers.Add(layerElemnet);
+            }
         }
     }
 }

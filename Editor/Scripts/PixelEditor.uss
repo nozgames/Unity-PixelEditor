@@ -49,22 +49,100 @@
     bottom:2px; 
 }
 
-.layers
+.layersPopup
 {
     position: Absolute;
     right: 20px;
     top: 20px;
-    height: 100px;
-    width: 100px;
+    width: 200px;
     border-radius: 6px;
 }
 
-.toolbar2 {
+.layers
+{
+
+}
+
+.layers>.selected
+{
+    border-radius: 0px;
+}
+
+.layersToolbar
+{
+    height: 20px;
+    margin-bottom: 4px;
+}
+
+.layersToolbar>Button
+{
+    width: 40px;
+}
+
+.layer
+{
+    flex-direction: row;
+    height: 40px;
+    align-items: Center;
+    border-color: #313131;
+    border-top-width: 1px;
+}
+
+.layer>Image
+{
+    width: 32px;
+    height: 32px;
+    border-width: 1px;
+    border-color: #313131;
+    margin-right: 8px;
+}
+
+.layer>Toggle
+{
+    margin-left: 8px;
+    margin-right: 8px;
+}
+
+.toolbox 
+{
     position: Absolute;
     left: 20px;
     top: 20px;
     border-radius: 6px;
-    padding: 5px;
+    padding: 4px;
+    padding-bottom: 0px;
+}
+
+.toolbox>#unity-content-container
+{
+    padding-top: 4px;
+}
+
+.toolbox>Image
+{
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    margin-bottom: 4px;
+}
+
+.toolbox>Image:hover
+{
+    background-color:#444444;
+}
+
+.selected
+{
+    background-color: #505050;
+    border-color: #505050;
+    border-radius: 5px;
+}
+
+.selected:hover
+{
+    background-color: #505050;
+    border-color: #505050;
+    border-radius: 5px;
 }
 
 .imageTest {
@@ -118,7 +196,14 @@ top: 50px;
     width:100px;
 }
 
-.toolbar>ColorField
+.toolbox>ColorField
 {
-    width:32px;
+    border-color: #BBBBBB;
+    border-width: 1;
+    margin-bottom: 4px;
+    margin-top: 8px;
+    padding: 1px;
+    width:28px;
 }
+
+.toolbox 
