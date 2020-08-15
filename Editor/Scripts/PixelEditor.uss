@@ -11,11 +11,11 @@
 .workspace {
     flex-grow: 1;
     width: 100%;
-    cursor: pan;
     overflow: hidden;
+    background-color: #313131;
 }
 
-.workspaceCursor {
+.stretchFit {
     position: Absolute;
     left: 0;
     right: 0;
@@ -52,10 +52,10 @@
 .layers
 {
     position: Absolute;
-    bottom: 20px;
-    left: 20px;
     right: 20px;
+    top: 20px;
     height: 100px;
+    width: 100px;
     border-radius: 6px;
 }
 
@@ -116,4 +116,9 @@ top: 50px;
 
 .toolbar>.zoom {
     width:100px;
+}
+
+.toolbar>ColorField
+{
+    width:32px;
 }

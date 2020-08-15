@@ -1,5 +1,4 @@
-﻿using System.IO;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace NoZ.PixelEditor
 {
@@ -8,31 +7,26 @@ namespace NoZ.PixelEditor
     {
         public override void OnImportAsset(UnityEditor.AssetImporters.AssetImportContext ctx)
         {
-            using (var reader = new BinaryReader(File.OpenRead(ctx.assetPath)))
+            // Load the raw file.
+            var file = PEFile.Load(ctx.assetPath);
+
+            foreach(var frame in file.frames)
             {
-                var width = reader.ReadInt32();
-                var height = reader.ReadInt32();
-                var pixels = reader.ReadBytes(width * height * 4);
+                var texture = file.RenderFrame(frame);
+                texture.name = $"{frame.animation.name}.{frame.order}";
+                ctx.AddObjectToAsset(frame.id, texture);
 
-                var texture2D = new Texture2D(width, height, TextureFormat.RGBA32, false);
-                texture2D.LoadRawTextureData(pixels);
-                texture2D.filterMode = FilterMode.Point;
-                texture2D.name = "Texture";
-
-                var pixelArt = ScriptableObject.CreateInstance<PixelArt>();
-                pixelArt.texture = texture2D;
-                pixelArt.width = width;
-                pixelArt.height = height;
-
-                ctx.AddObjectToAsset("pixelArt", pixelArt, texture2D);
-                ctx.AddObjectToAsset("Texture", texture2D, texture2D);
-
-                var sprite = Sprite.Create(texture2D, new Rect(0, 0, width, height), new Vector2(width/2, height/2));
-                sprite.name = "Sprite1";
-                ctx.AddObjectToAsset("Sprite1", sprite);
-
-                ctx.SetMainObject(pixelArt);
+                var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                sprite.name = texture.name;
+                ctx.AddObjectToAsset($"{frame.id}_sprite", sprite);
             }
+
+            var pixelArt = ScriptableObject.CreateInstance<PixelArt>();
+            pixelArt.texture = null;
+            pixelArt.width = file.width;
+            pixelArt.height = file.height;
+            ctx.AddObjectToAsset("main", pixelArt);
+            ctx.SetMainObject(pixelArt);
         }
     }
 }

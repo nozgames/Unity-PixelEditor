@@ -20,7 +20,12 @@ namespace NoZ.PixelEditor
         /// <summary>
         /// Custom cursor texture last set
         /// </summary>
-        private Texture2D _texture = null;
+        private Texture2D _customTexture = null;
+
+        /// <summary>
+        /// Hotspot used for custom texture
+        /// </summary>
+        private Vector2 _customHotspot;
 
         /// <summary>
         /// Property to wrap the current cursor and handle changing of the cursor
@@ -33,10 +38,21 @@ namespace NoZ.PixelEditor
 
                 _cursor = value;
                 if (_cursor != MouseCursor.CustomCursor)
-                    _texture = null;
+                    _customTexture = null;
 
                 MarkDirtyRepaint();
             }
+        }
+
+        /// <summary>
+        /// Refresh teh cursor with the lats set cursor 
+        /// </summary>
+        public void Refresh()
+        {
+            if(_customTexture != null)
+                UnityEngine.Cursor.SetCursor(_customTexture, _customHotspot, CursorMode.Auto);
+
+            MarkDirtyRepaint();
         }
 
         /// <summary>
@@ -54,20 +70,25 @@ namespace NoZ.PixelEditor
         public void SetCursor (Texture2D texture, Vector2 hotspot)
         {
             // Is the cursor already set?
-            if (_texture == texture && Cursor == MouseCursor.CustomCursor)
+            if (_customTexture == texture && Cursor == MouseCursor.CustomCursor)
                 return;
 
             // Set the cursor directly in unity
             UnityEngine.Cursor.SetCursor(texture, hotspot, CursorMode.Auto);
 
             // Save the cursor texture 
-            _texture = texture;
+            _customTexture = texture;
+            _customHotspot = hotspot;
             Cursor = MouseCursor.CustomCursor;
         }
 
         protected override void ImmediateRepaint()
         {
+            if (Cursor == MouseCursor.CustomCursor)
+                UnityEngine.Cursor.SetCursor(_customTexture, _customHotspot, CursorMode.Auto);
+
             EditorGUIUtility.AddCursorRect(contentRect, Cursor);
+
         }
     }
 }
