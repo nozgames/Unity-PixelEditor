@@ -4,6 +4,9 @@ using UnityEngine.UIElements;
 
 namespace NoZ.PixelEditor
 {
+    /// <summary>
+    /// Base class for all tools
+    /// </summary>
     internal class PETool : ImmediateModeElement
     {
         public PEWindow Window { get; private set; }

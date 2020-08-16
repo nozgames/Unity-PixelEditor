@@ -22,9 +22,6 @@ namespace NoZ.PixelEditor
             }
 
             var pixelArt = ScriptableObject.CreateInstance<PixelArt>();
-            pixelArt.texture = null;
-            pixelArt.width = file.width;
-            pixelArt.height = file.height;
             ctx.AddObjectToAsset("main", pixelArt);
             ctx.SetMainObject(pixelArt);
         }

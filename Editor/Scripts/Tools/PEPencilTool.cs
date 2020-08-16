@@ -12,6 +12,7 @@ namespace NoZ.PixelEditor
     {
         private static readonly Vector2 _cursorHotspot = new Vector2(0, 31);
         private Texture2D _cursor = null;
+        private PEImage _target = null;
 
         public PEPencilTool (PEWindow window) : base(window)
         {
@@ -34,22 +35,26 @@ namespace NoZ.PixelEditor
             if (button == MouseButton.MiddleMouse)
                 return;
 
-            Window.CurrentTexture.texture.SetPixel(
+            _target = _target ?? Window.CurrentFile.AddImage(Window.CurrentFrame, Window.CurrentLayer);
+
+            _target.texture.SetPixel(
                 canvasPosition.x, 
                 Window.CanvasHeight - 1 - canvasPosition.y,
                 button == MouseButton.LeftMouse ? Window.ForegroundColor : Window.BackgroundColor);
-            Window.CurrentTexture.texture.Apply();
+            _target.texture.Apply();
             Window.Canvas.MarkDirtyRepaint();
         }
 
-        public override void OnDrawStart(MouseButton button, Vector2Int canvasPosition)
-        {
+        public override void OnDrawStart(MouseButton button, Vector2Int canvasPosition) =>
             DrawPixel(button, canvasPosition);
-        }
 
-        public override void OnDrawContinue(MouseButton button, Vector2Int canvasPosition)
-        {
+        public override void OnDrawContinue(MouseButton button, Vector2Int canvasPosition) =>
             DrawPixel(button, canvasPosition);
-        }
+
+        public override void OnDrawEnd(MouseButton button, Vector2Int canvasPosition) =>
+            _target = null;
+
+        public override void OnDrawCancel(MouseButton button) =>
+            _target = null;
     }
 }

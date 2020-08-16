@@ -2,7 +2,7 @@
 
 namespace NoZ.PixelEditor
 {
-    internal class PETexture
+    internal class PEImage
     {
         /// <summary>
         /// Frame the texure belongs to

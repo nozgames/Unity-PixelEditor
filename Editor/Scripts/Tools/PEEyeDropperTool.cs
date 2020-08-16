@@ -42,10 +42,16 @@ namespace NoZ.PixelEditor
             if (button == MouseButton.MiddleMouse)
                 return;
 
-            // TODO: this should be sampling a composite pixel (have a sample option for current or all layers)
-            var color = Window.CurrentTexture.texture.GetPixel(
+            var target = Window.CurrentFile.FindImage(Window.CurrentFrame, Window.CurrentLayer);
+            if (null == target)
+                return;
+
+            // TODO: option for sample all layers or sample current layer in toolbar
+            var color = target.texture.GetPixel(
                 canvasPosition.x,
                 Window.CanvasHeight - 1 - canvasPosition.y);
+            if (color == Color.clear)
+                return;
 
             if (button == MouseButton.LeftMouse)
                 Window.ForegroundColor = color;

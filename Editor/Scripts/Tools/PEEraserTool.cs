@@ -11,6 +11,7 @@ namespace NoZ.PixelEditor
     {
         private static readonly Vector2 _cursorHotspot = new Vector2(0, 31);
         private Texture2D _cursor = null;
+        private PEImage _target = null;
 
         public PEEraserTool (PEWindow window) : base(window)
         {
@@ -33,11 +34,13 @@ namespace NoZ.PixelEditor
             if (button == MouseButton.MiddleMouse)
                 return;
 
-            Window.CurrentTexture.texture.SetPixel(
+            _target = _target ?? Window.CurrentFile.AddImage(Window.CurrentFrame, Window.CurrentLayer);
+
+            _target.texture.SetPixel(
                 canvasPosition.x,
                 Window.CanvasHeight - 1 - canvasPosition.y,
                 Color.clear);
-            Window.CurrentTexture.texture.Apply();
+            _target.texture.Apply();
             Window.Canvas.MarkDirtyRepaint();
         }
 
@@ -46,5 +49,11 @@ namespace NoZ.PixelEditor
 
         public override void OnDrawContinue(MouseButton button, Vector2Int canvasPosition) =>
             ErasePixel(button, canvasPosition);
+
+        public override void OnDrawEnd(MouseButton button, Vector2Int canvasPosition) =>
+            _target = null;
+
+        public override void OnDrawCancel(MouseButton button) =>
+            _target = null;
     }
 }

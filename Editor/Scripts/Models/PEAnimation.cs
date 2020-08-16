@@ -17,7 +17,7 @@ namespace NoZ.PixelEditor
         /// <summary>
         /// List of all textures in the animation
         /// </summary>
-        public List<PETexture> textures = null;
+        public List<PEImage> textures = null;
 
         /// <summary>
         /// List of all frames in the animation
