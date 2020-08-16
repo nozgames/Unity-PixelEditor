@@ -164,6 +164,7 @@ top: 50px;
     padding: 2px 4px 1px 4px;
     width: 22px;
     height: 19px;
+    margin-right: 2px;
 }
 
 .checked

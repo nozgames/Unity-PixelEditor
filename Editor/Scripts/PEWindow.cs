@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
+using UnityEngine.Rendering;
 
 namespace NoZ.PixelEditor
 {
@@ -22,6 +23,7 @@ namespace NoZ.PixelEditor
         private VisualElement _workspace = null;
         private VisualElement _toolbox = null;
         private VisualElement _layers = null;
+        private PEGrid _grid = null;
         private Toolbar _toolbar = null;
         private WorkspaceCursorManager _workspaceCursor = null;
         private Slider _zoomSlider = null;
@@ -163,8 +165,8 @@ namespace NoZ.PixelEditor
             Canvas.MarkDirtyRepaint();
             _workspace.Add(Canvas);
 
-            var grid = new PEGrid(this);
-            _workspace.Add(grid);
+            _grid = new PEGrid(this);
+            _workspace.Add(_grid);
 
             // Create an element to manage the workspace cursor
             _workspaceCursor = new WorkspaceCursorManager();
@@ -193,6 +195,14 @@ namespace NoZ.PixelEditor
 
             Undo.undoRedoPerformed += OnUndoRedo;
 
+            // Load the Saved preferences
+            ForegroundColor = ColorUtility.TryParseHtmlString(EditorPrefs.GetString("PixelEditor.ForegroundColor"), out var foregroundColor) ? 
+                foregroundColor : 
+                Color.white;
+            BackgroundColor = ColorUtility.TryParseHtmlString(EditorPrefs.GetString("PixelEditor.BackgroundColor"), out var backgroundColor) ?
+                backgroundColor :
+                Color.white;
+
             if (_pixelArt != null)
                 Load(_pixelArt);
         }
@@ -204,6 +214,9 @@ namespace NoZ.PixelEditor
 
         private void OnDisable()
         {
+            EditorPrefs.SetString("PixelEditor.ForegroundColor", $"#{ColorUtility.ToHtmlStringRGBA(ForegroundColor)}");
+            EditorPrefs.SetString("PixelEditor.BackgroundColor", $"#{ColorUtility.ToHtmlStringRGBA(BackgroundColor)}");
+
             Undo.undoRedoPerformed -= OnUndoRedo;
         }
 
@@ -319,6 +332,12 @@ namespace NoZ.PixelEditor
 
         private void RefreshCursor()
         {
+            if (!_workspaceCursor.visible)
+                return;
+
+            if (MouseCaptureController.IsMouseCaptured() && !MouseCaptureController.HasMouseCapture(_workspace))
+                return;
+
             _currentTool.SetCursor(WorkspaceToCanvas(_lastMousePosition));
             _workspaceCursor.Refresh();
         }
@@ -432,6 +451,7 @@ namespace NoZ.PixelEditor
         private void CreateToolbar()
         {
             _toolbar = new Toolbar();
+            _toolbar.pickingMode = PickingMode.Position;
             _toolbar.AddToClassList("toolbar");
 
             var modeMenu = new ToolbarMenu();
@@ -440,16 +460,22 @@ namespace NoZ.PixelEditor
             modeMenu.menu.AppendAction("Bone Editor", (a) => { }, (a) => DropdownMenuAction.Status.Normal);
             _toolbar.Add(modeMenu);
 
+            var toolbarSpacer = new VisualElement();
+            toolbarSpacer.style.flexGrow = 1.0f;
+            _toolbar.Add(toolbarSpacer);
+
+            var zoomImage = new Image();
+            zoomImage.style.width = 16;
+            zoomImage.style.height = 16;
+            zoomImage.image = AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/ZoomIcon.psd");
+            _toolbar.Add(zoomImage);
+
             _zoomSlider = new Slider();
             _zoomSlider.lowValue = ZoomMin;
             _zoomSlider.highValue = ZoomMax;
             _zoomSlider.AddToClassList("zoom");
             _zoomSlider.RegisterValueChangedCallback(OnZoomValueChanged);
             _toolbar.Add(_zoomSlider);
-
-            var toolbarSpacer = new VisualElement();
-            toolbarSpacer.style.flexGrow = 1.0f;
-            _toolbar.Add(toolbarSpacer);
 
             var layerToggle = new Image();
             layerToggle.pickingMode = PickingMode.Position;
@@ -470,6 +496,48 @@ namespace NoZ.PixelEditor
                 }
             });
             _toolbar.Add(layerToggle);
+
+            var gridToggle = new Image();
+            gridToggle.pickingMode = PickingMode.Position;
+            gridToggle.AddToClassList("toggleImage");
+            gridToggle.AddToClassList("checked");
+            gridToggle.image = AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/GridToggle.psd");
+            gridToggle.RegisterCallback<ClickEvent>((e) => {
+                e.StopImmediatePropagation();
+                if (_grid.ShowPixels)
+                {
+                    _grid.ShowPixels = false;
+                    gridToggle.RemoveFromClassList("checked");
+                }
+                else
+                {
+                    _grid.ShowPixels = true;
+                    gridToggle.AddToClassList("checked");
+                }
+            });
+            _toolbar.Add(gridToggle);
+
+            var checkerboardToggle = new Image();
+            checkerboardToggle.pickingMode = PickingMode.Position;
+            checkerboardToggle.AddToClassList("toggleImage");
+            checkerboardToggle.AddToClassList("checked");
+            checkerboardToggle.image = AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/Grid.psd");
+            checkerboardToggle.RegisterCallback<ClickEvent>((e) => {
+                e.StopImmediatePropagation();
+                if (Canvas.ShowCheckerboard)
+                {
+                    Canvas.ShowCheckerboard = false;
+                    checkerboardToggle.RemoveFromClassList("checked");
+                    Canvas.MarkDirtyRepaint();
+                }
+                else
+                {
+                    Canvas.ShowCheckerboard = true;
+                    checkerboardToggle.AddToClassList("checked");
+                    Canvas.MarkDirtyRepaint();
+                }
+            });
+            _toolbar.Add(checkerboardToggle);
 
             var saveButton = new ToolbarButton();
             saveButton.text = "Save";

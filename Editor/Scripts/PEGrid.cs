@@ -18,6 +18,9 @@ namespace NoZ.PixelEditor
         private PEWindow _window;
         private Color _color;
 
+        public bool ShowBorder { get; set; } = true;
+        public bool ShowPixels { get; set; } = true;
+
         public PEGrid(PEWindow window)
         {
             _window = window;
@@ -44,17 +47,23 @@ namespace NoZ.PixelEditor
             GUI.BeginClip(contentRect);
 
             // Draw the grid
-            if (alpha > 0.0f)
+            if(ShowPixels)
             {
-                Handles.color = new Color(_color.r, _color.g, _color.b, alpha);
-                DrawLines(center, size, 0, 1, _window.CanvasHeight, 1);
-                DrawLines(center, size, 1, 1, _window.CanvasWidth, 1);
+                if (alpha > 0.0f)
+                {
+                    Handles.color = new Color(_color.r, _color.g, _color.b, alpha);
+                    DrawLines(center, size, 0, 1, _window.CanvasHeight, 1);
+                    DrawLines(center, size, 1, 1, _window.CanvasWidth, 1);
+                }
             }
 
             // Draw the border
-            Handles.color = _color;
-            DrawLines(center, size, 0, 0, _window.CanvasHeight + 1, _window.CanvasHeight);
-            DrawLines(center, size, 1, 0, _window.CanvasWidth + 1, _window.CanvasWidth);
+            if (ShowBorder || ShowPixels)
+            {
+                Handles.color = _color;
+                DrawLines(center, size, 0, 0, _window.CanvasHeight + 1, _window.CanvasHeight);
+                DrawLines(center, size, 1, 0, _window.CanvasWidth + 1, _window.CanvasWidth);
+            }
 
             GUI.EndClip();
         }
