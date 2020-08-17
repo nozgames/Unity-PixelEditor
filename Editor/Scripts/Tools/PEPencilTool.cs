@@ -8,13 +8,12 @@ namespace NoZ.PixelEditor
     /// Implements a tool that draw pixels to the current layer using either 
     /// a foreground or background color depending on which mouse button is pressed.
     /// </summary>
-    internal class PEPencilTool : PETool
+    internal class PEPencilTool : PEBrushTool
     {
         private static readonly Vector2 _cursorHotspot = new Vector2(0, 31);
         private Texture2D _cursor = null;
-        private PEImage _target = null;
 
-        public PEPencilTool (PEWindow window) : base(window)
+        public PEPencilTool(PEWindow window) : base(window)
         {
             _cursor = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/PixelEditor/Editor/Cursors/Pencil.psd");
         }
@@ -24,37 +23,7 @@ namespace NoZ.PixelEditor
             Window.SetCursor(_cursor, _cursorHotspot);
         }
 
-        private void DrawPixel (MouseButton button, Vector2Int canvasPosition)
-        {
-            if (canvasPosition.x < 0 || 
-                canvasPosition.y < 0 ||
-                canvasPosition.x >= Window.CanvasWidth ||
-                canvasPosition.y >= Window.CanvasHeight)
-                return;
-
-            if (button == MouseButton.MiddleMouse)
-                return;
-
-            _target = _target ?? Window.CurrentFile.AddImage(Window.CurrentFrame, Window.CurrentLayer);
-
-            _target.texture.SetPixel(
-                canvasPosition.x, 
-                Window.CanvasHeight - 1 - canvasPosition.y,
-                button == MouseButton.LeftMouse ? Window.ForegroundColor : Window.BackgroundColor);
-            _target.texture.Apply();
-            Window.Canvas.MarkDirtyRepaint();
-        }
-
-        public override void OnDrawStart(MouseButton button, Vector2Int canvasPosition) =>
-            DrawPixel(button, canvasPosition);
-
-        public override void OnDrawContinue(MouseButton button, Vector2Int canvasPosition) =>
-            DrawPixel(button, canvasPosition);
-
-        public override void OnDrawEnd(MouseButton button, Vector2Int canvasPosition) =>
-            _target = null;
-
-        public override void OnDrawCancel(MouseButton button) =>
-            _target = null;
+        protected override Color GetDrawColor(MouseButton button) =>
+            button == MouseButton.RightMouse ? Window.BackgroundColor : Window.ForegroundColor;
     }
 }

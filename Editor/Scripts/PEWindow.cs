@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using UnityEngine.Rendering;
+using System.Diagnostics.Eventing.Reader;
 
 namespace NoZ.PixelEditor
 {
@@ -35,6 +36,7 @@ namespace NoZ.PixelEditor
 
         private int _drawButton = -1;
         private Vector2 _drawStart;
+        private Vector2 _drawLast;
         private PETool _currentTool = null;
         private PELayer _currentLayer = null;
         private Vector2 _lastMousePosition;
@@ -98,12 +100,16 @@ namespace NoZ.PixelEditor
                     return;
 
                 if (_currentTool != null)
+                {
                     _currentTool.visible = false;
+                    _currentTool.OnDisable();
+                }
 
                 _currentTool = value;
                 if (_currentTool != null)
                 {
                     _currentTool.visible = true;
+                    _currentTool.OnEnable();
                     _currentTool.MarkDirtyRepaint();
                 }
                 
@@ -156,6 +162,7 @@ namespace NoZ.PixelEditor
             _workspace.RegisterCallback<MouseEnterEvent>(OnWorkspaceMouseEnter);
             _workspace.RegisterCallback<MouseLeaveEvent>(OnWorkspaceMouseLeave);
             rootVisualElement.RegisterCallback<KeyDownEvent>(this.OnWorkspaceKeyDown);
+            rootVisualElement.focusable = true;
             _workspace.pickingMode = PickingMode.Position;
             _workspace.Focus();
             rootVisualElement.Add(_workspace);
@@ -259,8 +266,24 @@ namespace NoZ.PixelEditor
 
         private void OnWorkspaceKeyDown(KeyDownEvent evt)
         {
+            Debug.Log(evt.keyCode);
+            if(!_currentTool?.OnKeyDown(PEKeyEvent.Create(evt)) ?? true)
+            {
+                evt.StopImmediatePropagation();
+                return;
+            }
+
             switch (evt.keyCode)
             {
+                case KeyCode.A:
+                    if(evt.ctrlKey)
+                    {
+                        CurrentTool = _toolSelection;
+                        _toolSelection.Selection = new RectInt(0,0,CanvasWidth,CanvasHeight);
+                        evt.StopImmediatePropagation();
+                    }
+                    break;
+
                 case KeyCode.X:
                 {
                     var swap = ForegroundColor;
@@ -269,7 +292,6 @@ namespace NoZ.PixelEditor
                     evt.StopImmediatePropagation();
                     break;
                 }
-
 
                 case KeyCode.I:
                     CurrentTool = _toolEyeDropper;
@@ -373,7 +395,15 @@ namespace NoZ.PixelEditor
         private void OnWorkspaceMouseDown(MouseDownEvent evt)
         {
             // Give the tool a chance to handle the mouse down first
-            CurrentTool?.OnMouseDown((MouseButton)evt.button, evt.localMousePosition);
+            CurrentTool?.OnMouseDown(new PEMouseEvent
+            {
+                button = (MouseButton)evt.button,
+                alt = evt.altKey,
+                shift = evt.shiftKey,
+                ctrl = evt.ctrlKey,
+                canvasPosition = WorkspaceToCanvas(evt.localMousePosition),
+                workspacePosition = evt.localMousePosition
+            });
 
             // Ignore all mouse buttons when drawing
             if (IsDrawing)
@@ -384,11 +414,21 @@ namespace NoZ.PixelEditor
 
             _drawButton = evt.button;
             _drawStart = evt.localMousePosition;
+            _drawLast = _drawStart;
 
             if (CurrentTool.DrawThreshold <= 0.0f)
             {
                 IsDrawing = true;
-                CurrentTool?.OnDrawStart((MouseButton)_drawButton, WorkspaceToCanvas(evt.localMousePosition));
+                CurrentTool?.OnDrawStart(new PEDrawEvent
+                {
+                    start = _drawStart,
+                    button = (MouseButton)_drawButton,
+                    alt = evt.altKey,
+                    shift = evt.shiftKey,
+                    ctrl = evt.ctrlKey,
+                    canvasPosition = WorkspaceToCanvas(_drawStart),
+                    workspacePosition = _drawStart
+                });
             }
         }
 
@@ -397,12 +437,13 @@ namespace NoZ.PixelEditor
         /// </summary>
         private void OnWorkspaceMouseUp(MouseUpEvent evt)
         {
-            CurrentTool?.OnMouseUp((MouseButton)evt.button, evt.localMousePosition);
+            CurrentTool?.OnMouseUp(PEMouseEvent.Create(this, evt));
 
             // If drawing then end the drawing
             if(IsDrawing)
             {
-                CurrentTool?.OnDrawEnd((MouseButton)_drawButton, WorkspaceToCanvas(evt.localMousePosition));
+                CurrentTool?.OnDrawEnd(PEDrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart), false);
+
                 _drawButton = -1;
                 IsDrawing = false;
             }
@@ -420,7 +461,16 @@ namespace NoZ.PixelEditor
             // If drawing then cancel the draw
             if(IsDrawing)
             {
-                CurrentTool?.OnDrawCancel((MouseButton)_drawButton);
+                CurrentTool?.OnDrawEnd(new PEDrawEvent
+                {
+                    button = (MouseButton)_drawButton,
+                    alt = false,
+                    ctrl = false,
+                    shift = false,
+                    canvasPosition = WorkspaceToCanvas(_drawLast),
+                    workspacePosition = _drawLast,
+                    start = _drawStart
+                }, true);
                 IsDrawing = false;
             }
 
@@ -432,17 +482,21 @@ namespace NoZ.PixelEditor
         /// </summary>
         private void OnWorkspaceMouseMove(MouseMoveEvent evt)
         {
-            CurrentTool?.OnMouseMove(evt.localMousePosition);
+            CurrentTool?.OnMouseMove(PEMouseEvent.Create(this, evt));
 
             _lastMousePosition = evt.localMousePosition;
             var canvasPosition = WorkspaceToCanvas(evt.localMousePosition);
 
             if (IsDrawing)
-                CurrentTool?.OnDrawContinue((MouseButton)_drawButton, canvasPosition);
+            {
+                _drawLast = evt.localMousePosition;
+
+                CurrentTool?.OnDrawContinue(PEDrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
+            }
             else if (_drawButton != -1 && (evt.localMousePosition - _drawStart).magnitude >= CurrentTool.DrawThreshold)
             {
                 IsDrawing = true;
-                CurrentTool?.OnDrawStart((MouseButton)_drawButton, canvasPosition);
+                CurrentTool?.OnDrawStart(PEDrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
             }
 
             CurrentTool.SetCursor(canvasPosition);
@@ -559,11 +613,13 @@ namespace NoZ.PixelEditor
             _foregroundColor = new ColorField();
             _foregroundColor.showEyeDropper = false;
             _foregroundColor.value = Color.white;
+            _foregroundColor.RegisterValueChangedCallback((e) => rootVisualElement.Focus());
             _toolbox.Add(_foregroundColor);
 
             _backgroundColor = new ColorField();
             _backgroundColor.showEyeDropper = false;
             _backgroundColor.value = Color.white;
+            _backgroundColor.RegisterValueChangedCallback((e) => rootVisualElement.Focus());
             _toolbox.Add(_backgroundColor);
 
             rootVisualElement.Add(_toolbox);

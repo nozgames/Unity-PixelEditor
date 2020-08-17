@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using System;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -30,6 +31,12 @@ namespace NoZ.PixelEditor
 
         public bool IsDrawing => Window.IsDrawing;
 
+        public Vector2Int CanvasToTexture(Vector2Int v) =>
+            new Vector2Int(v.x, Window.CanvasHeight - 1 - v.y);
+
+        public RectInt CanvasToTexture(RectInt r) =>
+            new RectInt(r.xMin, Window.CanvasHeight - r.yMin - r.height, r.width, r.height);
+
         /// <summary>
         /// Load the icon for the tool
         /// </summary>
@@ -40,21 +47,17 @@ namespace NoZ.PixelEditor
         /// <summary>
         /// Called when a mouse button is pressed with the tool active
         /// </summary>
-        public virtual void OnMouseDown (MouseButton button, Vector2 workspacePosition)
-        {
-        }
+        public virtual void OnMouseDown(PEMouseEvent evt) { }
 
         /// <summary>
         /// Called when a mouse button is released with the tool active
         /// </summary>
-        public virtual void OnMouseUp (MouseButton button, Vector2 workspacePosition)
-        {
-        }
+        public virtual void OnMouseUp(PEMouseEvent evt) { }
 
         /// <summary>
         /// Called when the mouse moves while the tool is active
         /// </summary>
-        public virtual void OnMouseMove(Vector2 workspacePosition) { }
+        public virtual void OnMouseMove(PEMouseEvent evt) { }
 
         /// <summary>
         /// Set the cursor to the appropriate cursor for the given position
@@ -64,22 +67,21 @@ namespace NoZ.PixelEditor
             Window.SetCursor(MouseCursor.Arrow);
         }
 
-        public virtual void OnDrawStart (MouseButton button, Vector2Int canvasPosition)
-        {
-        }
+        /// <summary>
+        /// Called when the tool becomes the active tool
+        /// </summary>
+        public virtual void OnEnable() { }
 
-        public virtual void OnDrawContinue (MouseButton button, Vector2Int canvasPosition)
-        {
+        /// <summary>
+        /// Called when the tool is no longer the active tool
+        /// </summary>
+        public virtual void OnDisable() { }
 
-        }
+        public virtual void OnDrawStart (PEDrawEvent evt) { }
 
-        public virtual void OnDrawEnd (MouseButton button, Vector2Int canvasPosition)
-        {
-        }
+        public virtual void OnDrawContinue (PEDrawEvent evt) { }
 
-        public virtual void OnDrawCancel(MouseButton button)
-        {
-        }
+        public virtual void OnDrawEnd (PEDrawEvent evt, bool cancelled) { }
 
         sealed protected override void ImmediateRepaint()
         {
@@ -88,8 +90,8 @@ namespace NoZ.PixelEditor
             GUI.EndClip();            
         }
 
-        protected virtual void OnRepaint()
-        {
-        }
+        protected virtual void OnRepaint() { }
+
+        public virtual bool OnKeyDown(PEKeyEvent evt) => true;
     }
 }

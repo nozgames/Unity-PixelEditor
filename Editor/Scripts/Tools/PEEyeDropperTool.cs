@@ -22,11 +22,11 @@ namespace NoZ.PixelEditor
         public override void SetCursor(Vector2Int canvasPosition) =>
             Window.SetCursor(_cursor, _cursorHotspot);
 
-        public override void OnDrawStart(MouseButton button, Vector2Int canvasPosition) =>
-            SampleColor(button, canvasPosition);
+        public override void OnDrawStart(PEDrawEvent evt) =>
+            SampleColor(evt.button, evt.canvasPosition);
 
-        public override void OnDrawContinue(MouseButton button, Vector2Int canvasPosition) =>
-            SampleColor(button, canvasPosition);
+        public override void OnDrawContinue(PEDrawEvent evt) =>
+            SampleColor(evt.button, evt.canvasPosition);
 
         /// <summary>
         /// Sample a color from the current canvas
