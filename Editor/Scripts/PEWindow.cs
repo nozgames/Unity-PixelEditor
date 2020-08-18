@@ -504,9 +504,19 @@ namespace NoZ.PixelEditor
         }
 
         /// <summary>
-        /// Called when the zoom value is changed
+        /// Called when the zoom changes by dragging the slider or directly setting the zoom falue
         /// </summary>
-        private void OnZoomValueChanged(ChangeEvent<float> evt)
+        private void OnZoomValueChanged(ChangeEvent<float> evt) =>
+            OnZoomValueChanged(
+                evt.previousValue, 
+                evt.newValue, 
+                ScrollOffset + _scrollView.contentViewport.contentRect.size * 0.5f);
+
+        /// <summary>
+        /// Called when the zoom value is changed to handle adjusting the viewport
+        /// to keep the referencePosition in the same place on the canvas.
+        /// </summary>
+        private Vector2 OnZoomValueChanged(float oldZoom, float newZoom, Vector2 referencePosition)
         {
             Canvas.MarkDirtyRepaint();
             CurrentTool.MarkDirtyRepaint();
@@ -521,8 +531,8 @@ namespace NoZ.PixelEditor
             var oldWorkspaceSize = new Vector2(
                 _scrollView.contentContainer.style.width.value.value,
                 _scrollView.contentContainer.style.height.value.value);
-            var oldCanvasSize = (Vector2)CanvasSize * evt.previousValue;
-            var mouseCanvasRatio = (_lastMousePosition - (oldWorkspaceSize - oldCanvasSize) * 0.5f) / oldCanvasSize;
+            var oldCanvasSize = (Vector2)CanvasSize * oldZoom;
+            var referenceCanvasRatio = (referencePosition - (oldWorkspaceSize - oldCanvasSize) * 0.5f) / oldCanvasSize;
 
             UpdateScrollView();
 
@@ -530,10 +540,12 @@ namespace NoZ.PixelEditor
             var newWorkspaceSize = new Vector2(
                 _scrollView.contentContainer.style.width.value.value,
                 _scrollView.contentContainer.style.height.value.value);
-            var viewPosition = _workspace.ChangeCoordinatesTo(_scrollView.contentViewport, _lastMousePosition);
-            var newCanvasSize = (Vector2)CanvasSize * Zoom;
-            _lastMousePosition = (newWorkspaceSize - newCanvasSize) * 0.5f + mouseCanvasRatio * newCanvasSize;
-            ScrollOffset = _lastMousePosition - viewPosition;
+            var viewPosition = _workspace.ChangeCoordinatesTo(_scrollView.contentViewport, referencePosition);
+            var newCanvasSize = (Vector2)CanvasSize * newZoom;
+            referencePosition = (newWorkspaceSize - newCanvasSize) * 0.5f + referenceCanvasRatio * newCanvasSize;
+            ScrollOffset = referencePosition - viewPosition;
+
+            return referencePosition;
         }
 
         /// <summary>
@@ -541,10 +553,13 @@ namespace NoZ.PixelEditor
         /// </summary>
         private void OnWorkspaceWheel(WheelEvent evt)
         {
-            _zoomSlider.value = Mathf.Clamp(
+            var oldZoom = Zoom;
+            _zoomSlider.SetValueWithoutNotify(Mathf.Clamp(
                 Zoom * (evt.delta.y < 0 ? ZoomIncrementUp : ZoomIncrementDown), 
                 ZoomMin, 
-                ZoomMax);
+                ZoomMax));
+
+            _lastMousePosition = OnZoomValueChanged(oldZoom, _zoomSlider.value, _lastMousePosition);
 
             evt.StopImmediatePropagation();
         }
