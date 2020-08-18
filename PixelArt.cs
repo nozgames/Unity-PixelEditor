@@ -48,6 +48,7 @@ namespace NoZ.PixelEditor
                 writer.Write("Layer 1");
                 writer.Write(1.0f);
                 writer.Write(0);
+                writer.Write(true);
 
                 // Write animations
                 var animationId = System.Guid.NewGuid().ToString();

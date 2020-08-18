@@ -72,6 +72,9 @@ namespace NoZ.PixelEditor
             // Draw each layer
             foreach (var petexture in _window.CurrentFile.images.Where(t => t.frame == _window.CurrentFrame).OrderBy(t => t.layer.order))
             {
+                if (!petexture.layer.visible)
+                    continue;
+
                 var tint = Color.white.MultiplyAlpha(petexture.layer.opacity);
                 mesh = context.Allocate(4, 6, petexture.texture);
                 mesh.SetAllVertices(new Vertex[]

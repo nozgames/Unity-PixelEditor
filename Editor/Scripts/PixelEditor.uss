@@ -89,14 +89,31 @@ margin-top: 20px;
 
 .layersToolbar
 {
-    height: 20px;
     margin-bottom: 4px;
     flex-direction: row;
+    padding-left: 4px;
 }
 
-.layersToolbar>Button
+.layersToolbar>.imageButton
 {
-    width: 40px;
+    margin-right: 4px;
+}
+
+.imageButton
+{
+    padding: 4px;
+}
+
+.imageButton>Image
+{
+    width: 24px;
+    height: 24px;
+}
+
+.imageButton:hover
+{
+    background-color:#444444;
+    border-radius: 2px;
 }
 
 .layer
@@ -108,7 +125,7 @@ margin-top: 20px;
     border-top-width: 1px;
 }
 
-.layer>Image
+.layerPreview
 {
     width: 32px;
     height: 32px;
@@ -154,15 +171,13 @@ margin-top: 20px;
 .selected
 {
     background-color: #505050;
-    border-color: #505050;
-    border-radius: 5px;
+    border-color: #505050;    
 }
 
 .selected:hover
 {
     background-color: #505050;
-    border-color: #505050;
-    border-radius: 5px;
+    border-color: #505050;    
 }
 
 .imageTest {
@@ -178,7 +193,13 @@ top: 50px;
     justify-content: center;
 }
 
-.toggleImage 
+.toolbar>.noz-imageToggle-checked
+{
+    background-color: #505050;
+    border-color: #505050;
+}
+
+.noz-imageToggle 
 {
     padding: 2px 4px 1px 4px;
     width: 22px;
@@ -192,7 +213,7 @@ top: 50px;
     border-color: #505050;
 }
 
-.toggleImage:hover
+.noz-imageToggle:hover
 {
     background-color: #505050;
     border-color: #505050;

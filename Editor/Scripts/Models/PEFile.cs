@@ -160,6 +160,7 @@ namespace NoZ.PixelEditor
                     layer.name = reader.ReadString();
                     layer.opacity = reader.ReadSingle();
                     layer.order = reader.ReadInt32();
+                    layer.visible = reader.ReadBoolean();
                     file.layers.Add(layer);
                 }
 
@@ -222,6 +223,7 @@ namespace NoZ.PixelEditor
                     writer.Write(layer.name);
                     writer.Write(layer.opacity);
                     writer.Write(layer.order);
+                    writer.Write(layer.visible);
                 }
 
                 // Write animations

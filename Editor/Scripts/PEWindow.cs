@@ -3,11 +3,6 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
-using UnityEngine.Rendering;
-using System.Diagnostics.Eventing.Reader;
-using TMPro;
-using UnityEngine.Timeline;
-using ICSharpCode.NRefactory.PrettyPrinter;
 
 namespace NoZ.PixelEditor
 {
@@ -323,7 +318,7 @@ namespace NoZ.PixelEditor
         private void SetTitle(string title) =>
             titleContent = new GUIContent(
                 title,
-                AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/PixelArtEditor.psd"));
+                PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/PixelArtEditor.psd"));
 
         /// <summary>
         /// Convert a workspace coordinate into a coordinate within the scroll view
@@ -454,6 +449,9 @@ namespace NoZ.PixelEditor
 
         private void UpdateScrollView()
         {
+            if (_scrollView == null)
+                return;
+
             if (!IsEditing)
             {
                 _scrollView.contentContainer.style.width = 0;
@@ -711,7 +709,7 @@ namespace NoZ.PixelEditor
             var zoomImage = new Image();
             zoomImage.style.width = 16;
             zoomImage.style.height = 16;
-            zoomImage.image = AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/ZoomIcon.psd");
+            zoomImage.image = PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/ZoomIcon.psd");
             _toolbar.Add(zoomImage);
 
             _zoomSlider = new Slider();
@@ -721,39 +719,36 @@ namespace NoZ.PixelEditor
             _zoomSlider.RegisterValueChangedCallback(OnZoomValueChanged);
             _toolbar.Add(_zoomSlider);
 
-            _toolbar.Add(CreateToggleImage("Assets/PixelEditor/Editor/Icons/LayerToggle.psd", (v) =>
-            {
-                _layers.parent.visible = v;
-            }));
-            _toolbar.Add(CreateToggleImage("Assets/PixelEditor/Editor/Icons/GridToggle.psd", (v) => _grid.ShowPixels = v));
-            _toolbar.Add(CreateToggleImage("Assets/PixelEditor/Editor/Icons/Grid.psd", (v) =>
+            var layerToggle = new PEImageToggle();
+            layerToggle.checkedImage = PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/LayerToggle.psd");
+            layerToggle.value = true;
+            layerToggle.onValueChanged = (v) => _layers.parent.visible = v;
+            layerToggle.tooltip = "Toggle layers";
+            _toolbar.Add(layerToggle);
+
+            var gridToggle = new PEImageToggle();
+            gridToggle.checkedImage = PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/GridToggle.psd");
+            gridToggle.value = true;
+            gridToggle.onValueChanged = (v) => _grid.ShowPixels = v;
+            gridToggle.tooltip = "Toggle pixel grid";
+            _toolbar.Add(gridToggle);
+
+            var checkerboardToggle = new PEImageToggle();
+            checkerboardToggle.checkedImage = PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/Grid.psd");
+            checkerboardToggle.value = true;
+            checkerboardToggle.onValueChanged = (v) =>
             {
                 Canvas.ShowCheckerboard = v;
                 Canvas.MarkDirtyRepaint();
-            }));
+            };
+            checkerboardToggle.tooltip = "Toggle checkerboard";
+            _toolbar.Add(checkerboardToggle);
 
             var saveButton = new ToolbarButton();
             saveButton.text = "Save";
             saveButton.clickable.clicked += SaveFile;
             _toolbar.Add(saveButton);
             _editor.Add(_toolbar);
-        }
-
-        private VisualElement CreateToggleImage(string image, System.Action<bool> changeCallback)
-        {
-            var toggle = new Image();
-            toggle.pickingMode = PickingMode.Position;
-            toggle.AddToClassList("toggleImage");
-            toggle.AddToClassList("checked");
-            toggle.image = AssetDatabase.LoadAssetAtPath<Texture>(image);
-
-            toggle.RegisterCallback<ClickEvent>((e) => {
-                e.StopImmediatePropagation();
-                toggle.ToggleInClassList("checked");
-                changeCallback?.Invoke(toggle.ClassListContains("checked"));
-            });
-
-            return toggle;
         }
 
         private void CreateToolBox ()
@@ -784,58 +779,33 @@ namespace NoZ.PixelEditor
         private void CreateToolBoxButton(PETool tool, string image, string tooltip)
         {
             var button = new Image();
-            button.image = AssetDatabase.LoadAssetAtPath<Texture>(image);
-            button.AddManipulator(new Clickable(() => CurrentTool = tool));
+            button.image = PEUtils.LoadTexture(image);
+            button.RegisterCallback<ClickEvent>((e) => CurrentTool = tool);
             button.userData = tool;
             button.tooltip = tooltip;
             _toolbox.Add(button);
         }
 
-        private void CreateLayersPopup ()
+        private void AddLayer()
         {
-            var popup = new UnityEngine.UIElements.PopupWindow();
-            popup.text = "Layers";
-            popup.AddToClassList("layersPopup");
-            _editor.Add(popup);
-
-            var toolbar = new VisualElement();
-            toolbar.AddToClassList("layersToolbar");
-            popup.Add(toolbar);
-
-            var addLayerButton = new Button();
-            addLayerButton.text = "+";
-            addLayerButton.clickable.clicked += () =>
-            {
-                var addedLayer = CurrentFile.AddLayer();
-                UpdateLayers();
-                CurrentLayer = addedLayer;
-                Canvas.MarkDirtyRepaint();
-            };
-            toolbar.Add(addLayerButton);
-
-            // Remove layer
-            var removeLayerButton = new Button();
-            removeLayerButton.text = "-";
-            removeLayerButton.clickable.clicked += () =>
-            {
-                // Dont allow the last layer to be removed
-                if (CurrentFile.layers.Count < 2)
-                    return;
-
-                var order = CurrentLayer.order;
-                CurrentFile.RemoveLayer(CurrentLayer);
-                UpdateLayers();
-                order = Mathf.Min(order, CurrentFile.layers.Count - 1);
-                CurrentLayer = CurrentFile.layers.Where(l => l.order == order).FirstOrDefault();
-                Canvas.MarkDirtyRepaint();                
-            };
-            toolbar.Add(removeLayerButton);
-
-            _layers = new VisualElement();
-            _layers.AddToClassList("layers");
-            popup.Add(_layers);
-
+            var addedLayer = CurrentFile.AddLayer();
             UpdateLayers();
+            CurrentLayer = addedLayer;
+            Canvas.MarkDirtyRepaint();
+        }
+
+        private void RemoveLayer()
+        {
+            // Dont allow the last layer to be removed
+            if (CurrentFile.layers.Count < 2)
+                return;
+
+            var order = CurrentLayer.order;
+            CurrentFile.RemoveLayer(CurrentLayer);
+            UpdateLayers();
+            order = Mathf.Min(order, CurrentFile.layers.Count - 1);
+            CurrentLayer = CurrentFile.layers.Where(l => l.order == order).FirstOrDefault();
+            Canvas.MarkDirtyRepaint();
         }
 
         private void UpdateLayers()
@@ -848,21 +818,26 @@ namespace NoZ.PixelEditor
             foreach(var layer in CurrentFile.layers.OrderByDescending(l => l.order))
             {
                 var layerElemnet = new VisualElement();
+                layerElemnet.pickingMode = PickingMode.Position;
+                layerElemnet.focusable = true;
                 layerElemnet.AddToClassList("layer");
                 layerElemnet.userData = layer;
-                layerElemnet.AddManipulator(new Clickable(() =>
-                {
-                    CurrentLayer = layer;
-                }));
+                layerElemnet.RegisterCallback<ClickEvent>((e) => CurrentLayer = layer);
 
                 if (layer.order == 0)
                 layerElemnet.AddToClassList("selected");
 
-                var layerToggle = new Toggle();
-                layerElemnet.Add(layerToggle);
+                var visibilityToggle = new PEImageToggle();
+                visibilityToggle.checkedImage = PEUtils.LoadTexture("!scenevis_visible");
+                visibilityToggle.uncheckedImage = PEUtils.LoadTexture("!scenevis_hidden");
+                visibilityToggle.onValueChanged = (v) => { layer.visible = v; Canvas.MarkDirtyRepaint(); };
+                visibilityToggle.value = layer.visible;
+                visibilityToggle.tooltip = "Toggle layer visibility";
+                layerElemnet.Add(visibilityToggle);
 
-                var layerImage = new Image();
-                layerElemnet.Add(layerImage);
+                var layerPreview = new Image();
+                layerPreview.AddToClassList("layerPreview");
+                layerElemnet.Add(layerPreview);
 
                 var layerName = new Label(layer.name);
                 layerElemnet.Add(layerName);
@@ -942,6 +917,36 @@ namespace NoZ.PixelEditor
         private void OnWorkspaceMouseLeave(MouseLeaveEvent evt)
         {
             _workspaceCursor.visible = false;
+        }
+
+
+        private void CreateLayersPopup()
+        {
+            var popup = new UnityEngine.UIElements.PopupWindow();
+            popup.text = "Layers";
+            popup.focusable = true;
+            popup.AddToClassList("layersPopup");
+            _editor.Add(popup);
+
+            var toolbar = new VisualElement();
+            toolbar.AddToClassList("layersToolbar");
+            popup.Add(toolbar);
+
+            toolbar.Add(PEUtils.CreateImageButton(
+                "Assets/PixelEditor/Editor/Icons/LayerAdd.psd",
+                "Create a new layer",
+                AddLayer));
+
+            toolbar.Add(PEUtils.CreateImageButton(
+                "Assets/PixelEditor/Editor/Icons/Delete.psd",
+                "Delete layer",
+                RemoveLayer));
+
+            _layers = new VisualElement();
+            _layers.AddToClassList("layers");
+            popup.Add(_layers);
+
+            UpdateLayers();
         }
     }
 }

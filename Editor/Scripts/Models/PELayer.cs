@@ -21,5 +21,10 @@
         /// Layer opacity
         /// </summary>
         public float opacity = 1.0f;
+
+        /// <summary>
+        /// True if the layer is visible
+        /// </summary>
+        public bool visible = true;
     }
 }
