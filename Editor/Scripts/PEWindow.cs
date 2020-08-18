@@ -5,6 +5,9 @@ using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using UnityEngine.Rendering;
 using System.Diagnostics.Eventing.Reader;
+using TMPro;
+using UnityEngine.Timeline;
+using ICSharpCode.NRefactory.PrettyPrinter;
 
 namespace NoZ.PixelEditor
 {
@@ -19,20 +22,25 @@ namespace NoZ.PixelEditor
         private const float ZoomIncrementUp = 1.1f;
         private const float ZoomIncrementDown = 1.0f / ZoomIncrementUp;
 
+        private VisualElement _editor = null;
+        private VisualElement _empty = null;
         private ColorField _foregroundColor = null;
         private ColorField _backgroundColor = null;
         private VisualElement _workspace = null;
         private VisualElement _toolbox = null;
         private VisualElement _layers = null;
+        private ScrollView _scrollView = null;
         private PEGrid _grid = null;
         private Toolbar _toolbar = null;
         private WorkspaceCursorManager _workspaceCursor = null;
         private Slider _zoomSlider = null;
 
+
         private PEEyeDropperTool _toolEyeDropper;
         private PEPencilTool _toolPencil;
         private PEEraserTool _toolEraser;
         private PESelectionTool _toolSelection;
+        private PEPanTool _toolPan;
 
         private int _drawButton = -1;
         private Vector2 _drawStart;
@@ -40,8 +48,11 @@ namespace NoZ.PixelEditor
         private PETool _currentTool = null;
         private PELayer _currentLayer = null;
         private Vector2 _lastMousePosition;
+        private PETool _previousTool = null;
 
-        private PixelArt _pixelArt;
+        private PixelArt _target;
+
+        public bool IsEditing => _target != null && _editor.visible;
 
         /// <summary>
         /// Returns true if a drawing operation is currently in progress
@@ -49,6 +60,13 @@ namespace NoZ.PixelEditor
         public bool IsDrawing { get; private set; }
 
         public float Zoom => _zoomSlider.value;
+
+        /// <summary>
+        /// Returns the current size of the workspace
+        /// </summary>
+        public Vector2 WorkspaceSize => new Vector2(
+            _scrollView.contentContainer.style.width.value.value,
+            _scrollView.contentContainer.style.height.value.value);
 
         public int CanvasWidth => CurrentFile?.width ?? 0;
 
@@ -61,6 +79,14 @@ namespace NoZ.PixelEditor
         public PEFile CurrentFile { get; private set; }
 
         public PEAnimation CurrentAnimation => CurrentFrame?.animation;
+
+        public Vector2 ScrollOffset {
+            get => _scrollView.scrollOffset;
+            set {
+                _scrollView.scrollOffset = value;
+                _scrollView.MarkDirtyRepaint();
+            }
+        }
 
         public PELayer CurrentLayer {
             get => _currentLayer;
@@ -99,6 +125,8 @@ namespace NoZ.PixelEditor
                 if (_currentTool == value)
                     return;
 
+                _previousTool = _currentTool;
+
                 if (_currentTool != null)
                 {
                     _currentTool.visible = false;
@@ -130,26 +158,69 @@ namespace NoZ.PixelEditor
         {
             if (Selection.activeObject as PixelArt)
             {
-                var pixelArt = (PixelArt)Selection.activeObject;
-                
-                var window = GetWindow<PEWindow>();
-                window.titleContent = new GUIContent(
-                    pixelArt.name,
-                    AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/PixelArtEditor.psd"));
-                window.Load(pixelArt);
-
+                GetWindow<PEWindow>().OpenFile((PixelArt)Selection.activeObject);
                 return true;
             }
 
             return false;
         }
 
+        private void OnGUI()
+        {
+            if (Event.current.type == EventType.Layout)
+                UpdateScrollView();
+
+            if (Event.current.commandName == "ObjectSelectorUpdated")
+            {
+                var target = EditorGUIUtility.GetObjectPickerObject() as PixelArt;
+                if (target != null)
+                    OpenFile(target);
+                else
+                {
+                    _target = null;
+                    _editor.visible = false;
+                    _empty.visible = true;
+                    UpdateScrollView();
+                }                    
+            }                
+        }
+
         public void OnEnable()
         {
+            SetTitle("Pixel Editor");
+
             // Add style sheet
             rootVisualElement.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(USS));
 
+            _empty = new VisualElement();
+            _empty.AddToClassList("empty");
+            _empty.StretchToParentSize();
+            _empty.visible = true;
+            rootVisualElement.Add(_empty);
+
+            var openButton = new Button();
+            openButton.text = "Open PixelArt";
+            openButton.clickable.clicked += () => { EditorGUIUtility.ShowObjectPicker<PixelArt>(_target, false, null, 0); };
+            _empty.Add(openButton);
+
+            _editor = new VisualElement();
+            _editor.style.position = new StyleEnum<Position>(Position.Absolute);
+            _editor.style.left = 0;
+            _editor.style.right = 0;
+            _editor.style.bottom = 0;
+            _editor.style.top = 0;
+            _editor.visible = false;
+            rootVisualElement.Add(_editor);
+
             CreateToolbar();
+
+            _scrollView = new ScrollView();
+            _scrollView.StretchToParentSize();
+            //_scrollView.showHorizontal = true;
+            //_scrollView.showVertical = true;
+            //_scrollView.verticalPageSize = 10;
+            //_scrollView.horizontalPageSize= 10;
+            _editor.Add(_scrollView);
 
             _workspace = new VisualElement();
             _workspace.focusable = true;
@@ -161,11 +232,11 @@ namespace NoZ.PixelEditor
             _workspace.RegisterCallback<WheelEvent>(OnWorkspaceWheel);
             _workspace.RegisterCallback<MouseEnterEvent>(OnWorkspaceMouseEnter);
             _workspace.RegisterCallback<MouseLeaveEvent>(OnWorkspaceMouseLeave);
-            rootVisualElement.RegisterCallback<KeyDownEvent>(this.OnWorkspaceKeyDown);
-            rootVisualElement.focusable = true;
+            _editor.RegisterCallback<KeyDownEvent>(this.OnWorkspaceKeyDown);
+            _editor.focusable = true;
             _workspace.pickingMode = PickingMode.Position;
             _workspace.Focus();
-            rootVisualElement.Add(_workspace);
+            _scrollView.Add(_workspace);
 
             Canvas = new PECanvas(this);
             Canvas.pickingMode = PickingMode.Ignore;
@@ -174,12 +245,6 @@ namespace NoZ.PixelEditor
 
             _grid = new PEGrid(this);
             _workspace.Add(_grid);
-
-            // Create an element to manage the workspace cursor
-            _workspaceCursor = new WorkspaceCursorManager();
-            _workspaceCursor.AddToClassList("stretchFit");
-            _workspaceCursor.pickingMode = PickingMode.Ignore;
-            _workspace.Add(_workspaceCursor);
 
             // Create the tools
             _toolPencil = new PEPencilTool(this);
@@ -193,6 +258,15 @@ namespace NoZ.PixelEditor
 
             _toolSelection = new PESelectionTool(this);            
             _workspace.Add(_toolSelection);
+
+            _toolPan = new PEPanTool (this);
+            _workspace.Add(_toolPan);
+
+            // Create an element to manage the workspace cursor
+            _workspaceCursor = new WorkspaceCursorManager();
+            _workspaceCursor.AddToClassList("stretchFit");
+            _workspaceCursor.pickingMode = PickingMode.Ignore;
+            _workspace.Add(_workspaceCursor);
 
             CreateLayersPopup();
             CreateToolBox();
@@ -210,22 +284,52 @@ namespace NoZ.PixelEditor
                 backgroundColor :
                 Color.white;
 
-            if (_pixelArt != null)
-                Load(_pixelArt);
-        }
+            rootVisualElement.MarkDirtyRepaint();
 
-        private void OnWorkspaceMouseLeave(MouseLeaveEvent evt)
-        {
-            _workspaceCursor.visible = false;
+            if (_target != null)
+                OpenFile(_target);
         }
 
         private void OnDisable()
         {
+            // Save current file when the window is disabled.  We dont close the file here because
+            // that would prevent it from automatically opening up again if the editor is enabled
+            SaveFile();
+            CurrentFile = null;
+
             EditorPrefs.SetString("PixelEditor.ForegroundColor", $"#{ColorUtility.ToHtmlStringRGBA(ForegroundColor)}");
             EditorPrefs.SetString("PixelEditor.BackgroundColor", $"#{ColorUtility.ToHtmlStringRGBA(BackgroundColor)}");
 
             Undo.undoRedoPerformed -= OnUndoRedo;
         }
+
+        private void Update()
+        {
+            // Automatically close the current file if the asset is deleted
+            if (!IsEditing && _editor.visible)
+                CloseFile();
+            
+            // Handle asset renaming
+            if(_target != null && CurrentFile != null && _target.name != CurrentFile.name)
+            {
+                CurrentFile.name = _target.name;
+                SetTitle(_target.name);
+            }
+        }
+
+        /// <summary>
+        /// Set the window title with with the pixel art icon
+        /// </summary>
+        private void SetTitle(string title) =>
+            titleContent = new GUIContent(
+                title,
+                AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/PixelArtEditor.psd"));
+
+        /// <summary>
+        /// Convert a workspace coordinate into a coordinate within the scroll view
+        /// </summary>
+        public Vector2 WorkspaceToScrollView(Vector2 workspacePosition) =>
+            _workspace.ChangeCoordinatesTo(_scrollView.contentViewport, workspacePosition);
 
         /// <summary>
         /// Convert a coordinate from the workspace to the canvas.  Note that this 
@@ -264,74 +368,42 @@ namespace NoZ.PixelEditor
 
         public void SetCursor(Texture2D texture, Vector2 hotspot) => _workspaceCursor.SetCursor(texture, hotspot);
 
-        private void OnWorkspaceKeyDown(KeyDownEvent evt)
+        /// <summary>
+        /// Close any pixel art file that is currently open
+        /// </summary>
+        public void CloseFile ()
         {
-            Debug.Log(evt.keyCode);
-            if(!_currentTool?.OnKeyDown(PEKeyEvent.Create(evt)) ?? true)
+            // Save existing artwork first
+            if (CurrentFile != null)
+                SaveFile();
+
+            _target = null;
+            CurrentFile = null;
+            _editor.visible = false;
+            _empty.visible = true;
+            UpdateScrollView();
+        }
+
+        /// <summary>
+        /// Open the given pixel art file in the editor
+        /// </summary>
+        public void OpenFile(PixelArt target)
+        {
+            // Already open?
+            if (CurrentFile != null && target == _target)
+                return;
+
+            // If the given file is invalid then just close whatever we have open now
+            if(null == target)
             {
-                evt.StopImmediatePropagation();
+                CloseFile();
                 return;
             }
 
-            switch (evt.keyCode)
-            {
-                case KeyCode.A:
-                    if(evt.ctrlKey)
-                    {
-                        CurrentTool = _toolSelection;
-                        _toolSelection.Selection = new RectInt(0,0,CanvasWidth,CanvasHeight);
-                        evt.StopImmediatePropagation();
-                    }
-                    break;
+            _target = target;
 
-                case KeyCode.X:
-                {
-                    var swap = ForegroundColor;
-                    ForegroundColor = BackgroundColor;
-                    BackgroundColor = swap;
-                    evt.StopImmediatePropagation();
-                    break;
-                }
-
-                case KeyCode.I:
-                    CurrentTool = _toolEyeDropper;
-                    evt.StopImmediatePropagation();
-                    break;
-
-                case KeyCode.E:
-                    CurrentTool = _toolEraser;
-                    evt.StopImmediatePropagation();
-                    break;
-
-                case KeyCode.B:
-                    CurrentTool = _toolPencil;
-                    evt.StopImmediatePropagation();
-                    break;
-
-                case KeyCode.M:
-                    CurrentTool = _toolSelection;
-                    evt.StopImmediatePropagation();
-                    break;
-            }            
-        }
-
-        private void OnWorkspaceMouseEnter(MouseEnterEvent evt)
-        {
-            _workspaceCursor.visible = true;
-            RefreshCursor();
-        }
-
-        public void Load(PixelArt pa)
-        {
-            _pixelArt = pa;
-            Load(PEFile.Load(AssetDatabase.GetAssetPath(pa)));
-        }
-
-        private void Load(PEFile file)
-        {
-            CurrentFile = file;
-
-            _workspace.MarkDirtyRepaint();
+            SetTitle(_target.name);            
+            CurrentFile = PEFile.Load(AssetDatabase.GetAssetPath(target));
 
             CurrentTool = _toolSelection;
             CurrentTool.MarkDirtyRepaint();
@@ -341,14 +413,24 @@ namespace NoZ.PixelEditor
             CurrentFrame = CurrentFile.frames[0];
 
             UpdateLayers();
+
+            _editor.visible = true;
+            _empty.visible = false;
+            _editor.MarkDirtyRepaint();
+            UpdateScrollView();
+
+            ZoomToFit();
         }
 
-        private void Save()
+        /// <summary>
+        /// Save the currently open file
+        /// </summary>
+        private void SaveFile()
         {
-            if (null == _pixelArt)
+            if (null == CurrentFile || null == _target)
                 return;
 
-            CurrentFile.Save(AssetDatabase.GetAssetPath(_pixelArt));
+            CurrentFile.Save(AssetDatabase.GetAssetPath(_target));
             AssetDatabase.Refresh();
         }
 
@@ -370,23 +452,101 @@ namespace NoZ.PixelEditor
             CurrentTool.MarkDirtyRepaint();
         }
 
+        private void UpdateScrollView()
+        {
+            if (!IsEditing)
+            {
+                _scrollView.contentContainer.style.width = 0;
+                _scrollView.contentContainer.style.height = 0;
+                return;
+            }
+
+            // Dont update the scrollview until it has been laid out
+            if (float.IsNaN(_scrollView.contentViewport.contentRect.width) ||
+                float.IsNaN(_scrollView.contentViewport.contentRect.height))
+                return;
+
+            _scrollView.contentContainer.style.width = 
+                Mathf.Max(
+                    _scrollView.contentViewport.contentRect.width * 2.0f - CanvasWidth * Zoom, 
+                    CanvasWidth * Zoom + _scrollView.contentViewport.contentRect.width);
+
+            _scrollView.contentContainer.style.height = 
+                Mathf.Max(
+                    _scrollView.contentViewport.contentRect.height * 2.0f - CanvasHeight * Zoom, 
+                    CanvasHeight * Zoom + _scrollView.contentViewport.contentRect.height);
+        }
+
+        /// <summary>
+        /// Set the Zoom and ScrollOffset such that the content fits to the scroll view area.
+        /// </summary>
+        private void ZoomToFit ()
+        {
+            // If the scrollview isnt ready yet then wait till it is.  This mainly happens on 
+            // a file load right when the window is opening.
+            if(float.IsNaN(_scrollView.contentViewport.contentRect.width) ||
+               float.IsNaN(_scrollView.contentViewport.contentRect.height))
+            {
+                UpdateScrollView();
+                _scrollView.schedule.Execute(ZoomToFit);
+                return;
+            }
+
+            // Adjust the zoom such that the content is 90% of the available view space.  Note that
+            // the zoom changed handler is callled inline to ensure it is done before the scroll offset
+            // is calculated.
+            var zoom = _scrollView.contentViewport.contentRect.size * 0.9f / (Vector2)CanvasSize;
+            _zoomSlider.SetValueWithoutNotify(Mathf.Min(zoom.x, zoom.y));
+            OnZoomValueChanged(new ChangeEvent<float>());
+
+            // Offset the scroll view to center the content
+            ScrollOffset = (WorkspaceSize - _scrollView.contentViewport.contentRect.size) * 0.5f;
+        }
+
+        /// <summary>
+        /// Called when the zoom value is changed
+        /// </summary>
         private void OnZoomValueChanged(ChangeEvent<float> evt)
         {
-            //_layer.Zoom = evt.newValue;
             Canvas.MarkDirtyRepaint();
             CurrentTool.MarkDirtyRepaint();
             RefreshCursor();
+
+            // Resize the canvas.
+            Canvas.style.width = CanvasWidth * Zoom;
+            Canvas.style.height = CanvasHeight * Zoom;
+            Canvas.MarkDirtyRepaint();
+
+            // Determine where on the canvas the mouse was previously
+            var oldWorkspaceSize = new Vector2(
+                _scrollView.contentContainer.style.width.value.value,
+                _scrollView.contentContainer.style.height.value.value);
+            var oldCanvasSize = (Vector2)CanvasSize * evt.previousValue;
+            var mouseCanvasRatio = (_lastMousePosition - (oldWorkspaceSize - oldCanvasSize) * 0.5f) / oldCanvasSize;
+
+            UpdateScrollView();
+
+            // Position the cursor over the same pixel in the canvas that it was over before the zoom
+            var newWorkspaceSize = new Vector2(
+                _scrollView.contentContainer.style.width.value.value,
+                _scrollView.contentContainer.style.height.value.value);
+            var viewPosition = _workspace.ChangeCoordinatesTo(_scrollView.contentViewport, _lastMousePosition);
+            var newCanvasSize = (Vector2)CanvasSize * Zoom;
+            _lastMousePosition = (newWorkspaceSize - newCanvasSize) * 0.5f + mouseCanvasRatio * newCanvasSize;
+            ScrollOffset = _lastMousePosition - viewPosition;
         }
 
+        /// <summary>
+        /// Handle the mouse wheel to zoom in/out
+        /// </summary>
         private void OnWorkspaceWheel(WheelEvent evt)
         {
-            var zoom = Zoom;
-            if (evt.delta.y < 0)
-                zoom *= ZoomIncrementUp;
-            else
-                zoom *= ZoomIncrementDown;
+            _zoomSlider.value = Mathf.Clamp(
+                Zoom * (evt.delta.y < 0 ? ZoomIncrementUp : ZoomIncrementDown), 
+                ZoomMin, 
+                ZoomMax);
 
-            _zoomSlider.value = Mathf.Clamp(zoom, ZoomMin, ZoomMax);
+            evt.StopImmediatePropagation();
         }
 
         /// <summary>
@@ -394,6 +554,13 @@ namespace NoZ.PixelEditor
         /// </summary>
         private void OnWorkspaceMouseDown(MouseDownEvent evt)
         {
+            // Middle button is pan tool
+            if((MouseButton)evt.button == MouseButton.MiddleMouse)
+            {
+                _previousTool = CurrentTool;
+                CurrentTool = _toolPan;
+            }
+
             // Give the tool a chance to handle the mouse down first
             CurrentTool?.OnMouseDown(new PEMouseEvent
             {
@@ -446,6 +613,10 @@ namespace NoZ.PixelEditor
 
                 _drawButton = -1;
                 IsDrawing = false;
+
+                // If middle button pan was active then return to the previous tool
+                if ((MouseButton)evt.button == MouseButton.MiddleMouse && CurrentTool == _toolPan)
+                    CurrentTool = _previousTool;
             }
 
             // Release the mouse capture
@@ -461,6 +632,10 @@ namespace NoZ.PixelEditor
             // If drawing then cancel the draw
             if(IsDrawing)
             {
+                // If middle button pan was active then return to the previous tool
+                if ((MouseButton)_drawButton == MouseButton.MiddleMouse && CurrentTool == _toolPan)
+                    CurrentTool = _previousTool;
+
                 CurrentTool?.OnDrawEnd(new PEDrawEvent
                 {
                     button = (MouseButton)_drawButton,
@@ -499,7 +674,7 @@ namespace NoZ.PixelEditor
                 CurrentTool?.OnDrawStart(PEDrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
             }
 
-            CurrentTool.SetCursor(canvasPosition);
+            CurrentTool?.SetCursor(canvasPosition);
         }
 
         private void CreateToolbar()
@@ -531,73 +706,39 @@ namespace NoZ.PixelEditor
             _zoomSlider.RegisterValueChangedCallback(OnZoomValueChanged);
             _toolbar.Add(_zoomSlider);
 
-            var layerToggle = new Image();
-            layerToggle.pickingMode = PickingMode.Position;
-            layerToggle.AddToClassList("toggleImage");
-            layerToggle.AddToClassList("checked");
-            layerToggle.image = AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/LayerToggle.psd");
-            layerToggle.RegisterCallback<ClickEvent>((e) => {
-                e.StopImmediatePropagation();
-                if (_layers.parent.visible)
-                {
-                    _layers.parent.visible = false;
-                    layerToggle.RemoveFromClassList("checked");
-                }
-                else
-                {
-                    _layers.parent.visible = true;
-                    layerToggle.AddToClassList("checked");
-                }
-            });
-            _toolbar.Add(layerToggle);
-
-            var gridToggle = new Image();
-            gridToggle.pickingMode = PickingMode.Position;
-            gridToggle.AddToClassList("toggleImage");
-            gridToggle.AddToClassList("checked");
-            gridToggle.image = AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/GridToggle.psd");
-            gridToggle.RegisterCallback<ClickEvent>((e) => {
-                e.StopImmediatePropagation();
-                if (_grid.ShowPixels)
-                {
-                    _grid.ShowPixels = false;
-                    gridToggle.RemoveFromClassList("checked");
-                }
-                else
-                {
-                    _grid.ShowPixels = true;
-                    gridToggle.AddToClassList("checked");
-                }
-            });
-            _toolbar.Add(gridToggle);
-
-            var checkerboardToggle = new Image();
-            checkerboardToggle.pickingMode = PickingMode.Position;
-            checkerboardToggle.AddToClassList("toggleImage");
-            checkerboardToggle.AddToClassList("checked");
-            checkerboardToggle.image = AssetDatabase.LoadAssetAtPath<Texture>("Assets/PixelEditor/Editor/Icons/Grid.psd");
-            checkerboardToggle.RegisterCallback<ClickEvent>((e) => {
-                e.StopImmediatePropagation();
-                if (Canvas.ShowCheckerboard)
-                {
-                    Canvas.ShowCheckerboard = false;
-                    checkerboardToggle.RemoveFromClassList("checked");
-                    Canvas.MarkDirtyRepaint();
-                }
-                else
-                {
-                    Canvas.ShowCheckerboard = true;
-                    checkerboardToggle.AddToClassList("checked");
-                    Canvas.MarkDirtyRepaint();
-                }
-            });
-            _toolbar.Add(checkerboardToggle);
+            _toolbar.Add(CreateToggleImage("Assets/PixelEditor/Editor/Icons/LayerToggle.psd", (v) =>
+            {
+                _layers.parent.visible = v;
+            }));
+            _toolbar.Add(CreateToggleImage("Assets/PixelEditor/Editor/Icons/GridToggle.psd", (v) => _grid.ShowPixels = v));
+            _toolbar.Add(CreateToggleImage("Assets/PixelEditor/Editor/Icons/Grid.psd", (v) =>
+            {
+                Canvas.ShowCheckerboard = v;
+                Canvas.MarkDirtyRepaint();
+            }));
 
             var saveButton = new ToolbarButton();
             saveButton.text = "Save";
-            saveButton.clickable.clicked += Save;
+            saveButton.clickable.clicked += SaveFile;
             _toolbar.Add(saveButton);
-            rootVisualElement.Add(_toolbar);
+            _editor.Add(_toolbar);
+        }
+
+        private VisualElement CreateToggleImage(string image, System.Action<bool> changeCallback)
+        {
+            var toggle = new Image();
+            toggle.pickingMode = PickingMode.Position;
+            toggle.AddToClassList("toggleImage");
+            toggle.AddToClassList("checked");
+            toggle.image = AssetDatabase.LoadAssetAtPath<Texture>(image);
+
+            toggle.RegisterCallback<ClickEvent>((e) => {
+                e.StopImmediatePropagation();
+                toggle.ToggleInClassList("checked");
+                changeCallback?.Invoke(toggle.ClassListContains("checked"));
+            });
+
+            return toggle;
         }
 
         private void CreateToolBox ()
@@ -613,16 +754,16 @@ namespace NoZ.PixelEditor
             _foregroundColor = new ColorField();
             _foregroundColor.showEyeDropper = false;
             _foregroundColor.value = Color.white;
-            _foregroundColor.RegisterValueChangedCallback((e) => rootVisualElement.Focus());
+            _foregroundColor.RegisterValueChangedCallback((e) => _editor.Focus());
             _toolbox.Add(_foregroundColor);
 
             _backgroundColor = new ColorField();
             _backgroundColor.showEyeDropper = false;
             _backgroundColor.value = Color.white;
-            _backgroundColor.RegisterValueChangedCallback((e) => rootVisualElement.Focus());
+            _backgroundColor.RegisterValueChangedCallback((e) => _editor.Focus());
             _toolbox.Add(_backgroundColor);
 
-            rootVisualElement.Add(_toolbox);
+            _editor.Add(_toolbox);
         }
 
         private void CreateToolBoxButton(PETool tool, string image, string tooltip)
@@ -640,7 +781,7 @@ namespace NoZ.PixelEditor
             var popup = new UnityEngine.UIElements.PopupWindow();
             popup.text = "Layers";
             popup.AddToClassList("layersPopup");
-            rootVisualElement.Add(popup);
+            _editor.Add(popup);
 
             var toolbar = new VisualElement();
             toolbar.AddToClassList("layersToolbar");
@@ -713,6 +854,79 @@ namespace NoZ.PixelEditor
                 
                 _layers.Add(layerElemnet);
             }
+        }
+
+        private void OnWorkspaceKeyDown(KeyDownEvent evt)
+        {
+            // Send the key to the current tool
+            if (!_currentTool?.OnKeyDown(PEKeyEvent.Create(evt)) ?? true)
+            {
+                evt.StopImmediatePropagation();
+                return;
+            }
+
+            // Handle window level key commands
+            switch (evt.keyCode)
+            {
+                case KeyCode.F:
+                    ZoomToFit();
+                    break;
+
+                case KeyCode.A:
+                    // Ctrl+a = select all
+                    if (evt.ctrlKey)
+                    {
+                        CurrentTool = _toolSelection;
+                        _toolSelection.Selection = new RectInt(0, 0, CanvasWidth, CanvasHeight);
+                        evt.StopImmediatePropagation();
+                    }
+                    break;
+
+                // Swap foreground and background colors
+                case KeyCode.X:
+                {
+                    var swap = ForegroundColor;
+                    ForegroundColor = BackgroundColor;
+                    BackgroundColor = swap;
+                    evt.StopImmediatePropagation();
+                    break;
+                }
+
+                // Change to eyedropper tool
+                case KeyCode.I:
+                    CurrentTool = _toolEyeDropper;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to eraser tool
+                case KeyCode.E:
+                    CurrentTool = _toolEraser;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to pencil tool
+                case KeyCode.B:
+                    CurrentTool = _toolPencil;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to selection tool
+                case KeyCode.M:
+                    CurrentTool = _toolSelection;
+                    evt.StopImmediatePropagation();
+                    break;
+            }
+        }
+
+        private void OnWorkspaceMouseEnter(MouseEnterEvent evt)
+        {
+            _workspaceCursor.visible = true;
+            RefreshCursor();
+        }
+
+        private void OnWorkspaceMouseLeave(MouseLeaveEvent evt)
+        {
+            _workspaceCursor.visible = false;
         }
     }
 }

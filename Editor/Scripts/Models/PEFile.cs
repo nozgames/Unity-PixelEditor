@@ -7,6 +7,8 @@ namespace NoZ.PixelEditor
 {
     internal class PEFile
     {
+        public string name;
+
         public int width;
 
         public int height;
@@ -139,7 +141,7 @@ namespace NoZ.PixelEditor
         /// </summary>
         public static PEFile Load (string filename)
         {
-            var file = new PEFile();
+            var file = new PEFile { name = Path.GetFileNameWithoutExtension(filename) };
 
             using (var reader = new BinaryReader(File.OpenRead(filename)))
             {

@@ -14,12 +14,8 @@ namespace NoZ.PixelEditor
 
         public PECanvas(PEWindow window)
         {
-            style.position = new StyleEnum<Position>(Position.Absolute);
-            style.left = 0;
-            style.right = 0;
-            style.bottom = 0;
-            style.top = 0;
-
+            AddToClassList("canvas");
+            
             pickingMode = PickingMode.Ignore;
 
             _window = window;
