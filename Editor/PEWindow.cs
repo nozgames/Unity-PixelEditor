@@ -943,9 +943,19 @@ namespace NoZ.PixelEditor
             toolbar.Add(PEUtils.CreateImageButton("LayerAdd.psd","Create a new layer",AddLayer));
             toolbar.Add(PEUtils.CreateImageButton("Delete.psd","Delete layer",RemoveLayer));
 
+            var layersContainer = new VisualElement();
+
             _layers = new PEReorderableList();
             _layers.AddToClassList("layers");
-            popup.Add(_layers);
+            _layers.onElementMoved += (oldIndex, newIndex) =>
+            {
+                for (int itemIndex = 0; itemIndex < _layers.itemCount; itemIndex++)
+                    ((PELayer)_layers.ItemAt(itemIndex).userData).order = _layers.itemCount - itemIndex - 1;
+
+                Canvas.MarkDirtyRepaint();
+            };
+            layersContainer.Add(_layers);
+            popup.Add(layersContainer);
 
             UpdateLayers();
         }
