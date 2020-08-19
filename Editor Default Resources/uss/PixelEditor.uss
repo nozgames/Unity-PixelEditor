@@ -130,8 +130,9 @@ margin-top: 20px;
     width: 32px;
     height: 32px;
     border-width: 1px;
-    border-color: #313131;
+    border-color: #666666;
     margin-right: 8px;
+    background-color: #202020;
 }
 
 .layer>Toggle
@@ -219,22 +220,6 @@ top: 50px;
     border-color: #505050;
     border-radius: 1px;
 }
-
-.selectionTool>Image
-{
-    --unity-image: resource("Assets/PE/Editor/Editor Resources/SelectionTool.psd");
-}
-
-.pencilTool>Image
-{
-    --unity-image: resource("Assets/PE/Editor/Editor Resources/PencilTool.psd");
-}
-
-.eraserTool>Image
-{
-    --unity-image: resource("Assets/PE/Editor/Editor Resources/EraserTool.psd");
-}
-
 
 .colorTool {
     margin-top: 5px;

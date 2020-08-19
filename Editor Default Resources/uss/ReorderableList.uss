@@ -1,0 +1,39 @@
+.ReorderableList
+{
+    position:Absolute;
+    left:0;
+    right:0;
+    top:0;
+    background-color:#282828;
+}
+
+.ReorderableList > #ListContainer
+{
+    background-color:#383838;
+    padding-top: 2px;
+    padding-bottom: 4px;
+}
+
+.ReorderableList > * > *
+{
+    flex-direction:row;
+    align-items:center;
+}
+
+.ReorderableList > * > *.selected
+{
+    background-color:#3d6091;
+}
+
+.ReorderableList > * > * > #DraggingHandle
+{
+    width: 16px;
+    align-items:center;
+    justify-content:center;
+}
+
+#DraggingHandle #icon
+{
+    width: 10px;
+    height: 6px;
+}

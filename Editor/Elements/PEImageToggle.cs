@@ -36,7 +36,9 @@ namespace NoZ.PixelEditor
                 if (_value == value)
                     return;
                 _value = value;
-                _image.image = (_value ? _checkedImage : _uncheckedImage) ?? _checkedImage;
+                _image.image = (_value ? _checkedImage : _uncheckedImage);
+                if (_image.image == null)
+                    _image.image = _checkedImage;
                 _image.MarkDirtyRepaint();
 
                 if (_value)
@@ -64,7 +66,7 @@ namespace NoZ.PixelEditor
             set {
                 _uncheckedImage = value;
                 if (!this.value)
-                    _image.image = _uncheckedImage ?? _checkedImage;
+                    _image.image = _uncheckedImage == null ? _checkedImage : _uncheckedImage;
             }
         }
     }

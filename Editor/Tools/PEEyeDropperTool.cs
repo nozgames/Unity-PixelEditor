@@ -16,7 +16,7 @@ namespace NoZ.PixelEditor
 
         public PEEyeDropperTool(PEWindow window) : base(window)
         {
-            _cursor = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/PixelEditor/Editor/Cursors/EyeDropper.psd");
+            _cursor = PEUtils.LoadCursor("EyeDropper.psd");
         }
 
         public override void SetCursor(Vector2Int canvasPosition) =>

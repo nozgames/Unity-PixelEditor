@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEditor;
 
 namespace NoZ.PixelEditor
 {
@@ -16,7 +17,7 @@ namespace NoZ.PixelEditor
 
         public override void SetCursor(Vector2Int canvasPosition)
         {
-            Window.SetCursor(UnityEditor.MouseCursor.Pan);
+            Window.SetCursor(MouseCursor.Pan);
         }
 
         public override void OnDrawStart(PEDrawEvent evt)

@@ -11,7 +11,6 @@ namespace NoZ.PixelEditor
     /// </summary>
     internal class PEWindow : EditorWindow
     {
-        private const string USS = "Assets/PixelEditor/Editor/Scripts/PixelEditor.uss";
         private const float ZoomMin = 1.0f;
         private const float ZoomMax = 50.0f;
         private const float ZoomIncrementUp = 1.1f;
@@ -23,7 +22,7 @@ namespace NoZ.PixelEditor
         private ColorField _backgroundColor = null;
         private VisualElement _workspace = null;
         private VisualElement _toolbox = null;
-        private VisualElement _layers = null;
+        private PEReorderableList _layers = null;
         private ScrollView _scrollView = null;
         private PEGrid _grid = null;
         private Toolbar _toolbar = null;
@@ -47,7 +46,7 @@ namespace NoZ.PixelEditor
 
         private PixelArt _target;
 
-        public bool IsEditing => _target != null && _editor.visible;
+        public bool IsEditing => _target != null && (_editor?.visible ?? false);
 
         /// <summary>
         /// Returns true if a drawing operation is currently in progress
@@ -91,13 +90,15 @@ namespace NoZ.PixelEditor
 
                 _currentLayer = value;
 
-                foreach(var child in _layers.Children())
+                for(int itemIndex=0; itemIndex<_layers.itemCount; itemIndex++)
                 {
-                    var layer = (PELayer)child.userData;
+                    var item = _layers.ItemAt(itemIndex);
+                    var layer = (PELayer)item.userData;
                     if (layer == _currentLayer)
-                        child.AddToClassList("selected");
-                    else
-                        child.RemoveFromClassList("selected");
+                    {
+                        _layers.Select(itemIndex);
+                        break;
+                    }
                 }
             }
         }
@@ -148,6 +149,13 @@ namespace NoZ.PixelEditor
             }
         }
 
+        [MenuItem("Window/2D/Pixel Editor")]
+        public static void OpenWindow ()
+        {
+            GetWindow<PEWindow>();
+        }
+
+
         [UnityEditor.Callbacks.OnOpenAsset(1)]
         public static bool OnOpenAsset(int instanceID, int line)
         {
@@ -185,7 +193,7 @@ namespace NoZ.PixelEditor
             SetTitle("Pixel Editor");
 
             // Add style sheet
-            rootVisualElement.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(USS));
+            rootVisualElement.styleSheets.Add(PEUtils.LoadStyleSheet("PixelEditor"));
 
             _empty = new VisualElement();
             _empty.AddToClassList("empty");
@@ -318,7 +326,7 @@ namespace NoZ.PixelEditor
         private void SetTitle(string title) =>
             titleContent = new GUIContent(
                 title,
-                PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/PixelArtEditor.psd"));
+                PEUtils.LoadImage("PixelArtEditor.psd"));
 
         /// <summary>
         /// Convert a workspace coordinate into a coordinate within the scroll view
@@ -709,7 +717,7 @@ namespace NoZ.PixelEditor
             var zoomImage = new Image();
             zoomImage.style.width = 16;
             zoomImage.style.height = 16;
-            zoomImage.image = PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/ZoomIcon.psd");
+            zoomImage.image = PEUtils.LoadImage("ZoomIcon.psd");
             _toolbar.Add(zoomImage);
 
             _zoomSlider = new Slider();
@@ -720,21 +728,21 @@ namespace NoZ.PixelEditor
             _toolbar.Add(_zoomSlider);
 
             var layerToggle = new PEImageToggle();
-            layerToggle.checkedImage = PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/LayerToggle.psd");
+            layerToggle.checkedImage = PEUtils.LoadImage("LayerToggle.psd");
             layerToggle.value = true;
             layerToggle.onValueChanged = (v) => _layers.parent.visible = v;
             layerToggle.tooltip = "Toggle layers";
             _toolbar.Add(layerToggle);
 
             var gridToggle = new PEImageToggle();
-            gridToggle.checkedImage = PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/GridToggle.psd");
+            gridToggle.checkedImage = PEUtils.LoadImage("GridToggle.psd");
             gridToggle.value = true;
             gridToggle.onValueChanged = (v) => _grid.ShowPixels = v;
             gridToggle.tooltip = "Toggle pixel grid";
             _toolbar.Add(gridToggle);
 
             var checkerboardToggle = new PEImageToggle();
-            checkerboardToggle.checkedImage = PEUtils.LoadTexture("Assets/PixelEditor/Editor/Icons/Grid.psd");
+            checkerboardToggle.checkedImage = PEUtils.LoadImage("Grid.psd");
             checkerboardToggle.value = true;
             checkerboardToggle.onValueChanged = (v) =>
             {
@@ -756,10 +764,10 @@ namespace NoZ.PixelEditor
             _toolbox = new UnityEngine.UIElements.PopupWindow();
             _toolbox.AddToClassList("toolbox");
 
-            CreateToolBoxButton(_toolSelection, "Assets/PixelEditor/Editor/Icons/SelectionTool.psd", "Rectangular Marquee Tool (M)");
-            CreateToolBoxButton(_toolPencil, "Assets/PixelEditor/Editor/Icons/PencilTool.psd", "Pencil Tool (B)");
-            CreateToolBoxButton(_toolEraser, "Assets/PixelEditor/Editor/Icons/EraserTool.psd", "Eraser Tool (E)");
-            CreateToolBoxButton(_toolEyeDropper, "Assets/PixelEditor/Editor/Icons/EyeDropperTool.psd", "Eyedropper Tool (I)");
+            CreateToolBoxButton(_toolSelection, "SelectionTool.psd", "Rectangular Marquee Tool (M)");
+            CreateToolBoxButton(_toolPencil, "PencilTool.psd", "Pencil Tool (B)");
+            CreateToolBoxButton(_toolEraser, "EraserTool.psd", "Eraser Tool (E)");
+            CreateToolBoxButton(_toolEyeDropper, "EyeDropperTool.psd", "Eyedropper Tool (I)");
 
             _foregroundColor = new ColorField();
             _foregroundColor.showEyeDropper = false;
@@ -779,7 +787,7 @@ namespace NoZ.PixelEditor
         private void CreateToolBoxButton(PETool tool, string image, string tooltip)
         {
             var button = new Image();
-            button.image = PEUtils.LoadTexture(image);
+            button.image = PEUtils.LoadImage(image);
             button.RegisterCallback<ClickEvent>((e) => CurrentTool = tool);
             button.userData = tool;
             button.tooltip = tooltip;
@@ -810,40 +818,40 @@ namespace NoZ.PixelEditor
 
         private void UpdateLayers()
         {
-            _layers.Clear();
+            _layers.RemoveAllItems();
 
             if (CurrentFile == null)
                 return;
 
             foreach(var layer in CurrentFile.layers.OrderByDescending(l => l.order))
             {
-                var layerElemnet = new VisualElement();
-                layerElemnet.pickingMode = PickingMode.Position;
-                layerElemnet.focusable = true;
-                layerElemnet.AddToClassList("layer");
-                layerElemnet.userData = layer;
-                layerElemnet.RegisterCallback<ClickEvent>((e) => CurrentLayer = layer);
-
-                if (layer.order == 0)
-                layerElemnet.AddToClassList("selected");
+                var layerElement = new VisualElement();
+                layerElement.pickingMode = PickingMode.Position;
+                layerElement.focusable = true;
+                layerElement.AddToClassList("layer");
+                layerElement.userData = layer;
+                //layerElemnet.RegisterCallback<ClickEvent>((e) => CurrentLayer = layer);
 
                 var visibilityToggle = new PEImageToggle();
-                visibilityToggle.checkedImage = PEUtils.LoadTexture("!scenevis_visible");
-                visibilityToggle.uncheckedImage = PEUtils.LoadTexture("!scenevis_hidden");
+                visibilityToggle.checkedImage = PEUtils.LoadImage("!scenevis_visible");
+                visibilityToggle.uncheckedImage = PEUtils.LoadImage("!scenevis_hidden");
                 visibilityToggle.onValueChanged = (v) => { layer.visible = v; Canvas.MarkDirtyRepaint(); };
                 visibilityToggle.value = layer.visible;
                 visibilityToggle.tooltip = "Toggle layer visibility";
-                layerElemnet.Add(visibilityToggle);
+                layerElement.Add(visibilityToggle);
 
                 var layerPreview = new Image();
                 layerPreview.AddToClassList("layerPreview");
-                layerElemnet.Add(layerPreview);
+                layerPreview.image = CurrentFile.FindImage(CurrentFile.frames[0], layer)?.texture;
+                layerElement.Add(layerPreview);
 
                 var layerName = new Label(layer.name);
-                layerElemnet.Add(layerName);
-                
-                _layers.Add(layerElemnet);
+                layerElement.Add(layerName);
+
+                _layers.AddItem(layerElement);
             }
+
+            _layers.Select(0);
         }
 
         private void OnWorkspaceKeyDown(KeyDownEvent evt)
@@ -932,17 +940,10 @@ namespace NoZ.PixelEditor
             toolbar.AddToClassList("layersToolbar");
             popup.Add(toolbar);
 
-            toolbar.Add(PEUtils.CreateImageButton(
-                "Assets/PixelEditor/Editor/Icons/LayerAdd.psd",
-                "Create a new layer",
-                AddLayer));
+            toolbar.Add(PEUtils.CreateImageButton("LayerAdd.psd","Create a new layer",AddLayer));
+            toolbar.Add(PEUtils.CreateImageButton("Delete.psd","Delete layer",RemoveLayer));
 
-            toolbar.Add(PEUtils.CreateImageButton(
-                "Assets/PixelEditor/Editor/Icons/Delete.psd",
-                "Delete layer",
-                RemoveLayer));
-
-            _layers = new VisualElement();
+            _layers = new PEReorderableList();
             _layers.AddToClassList("layers");
             popup.Add(_layers);
 

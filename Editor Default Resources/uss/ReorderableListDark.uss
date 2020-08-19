@@ -1,0 +1,4 @@
+#DraggingHandle #icon
+{
+    background-image: resource("Builtin Skins/DarkSkin/Images/WindowBottomResize.png");
+}

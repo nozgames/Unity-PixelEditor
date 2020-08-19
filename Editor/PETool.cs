@@ -42,7 +42,7 @@ namespace NoZ.PixelEditor
         /// </summary>
         /// <returns></returns>
         public Texture2D LoadIcon () =>
-            AssetDatabase.LoadAssetAtPath<Texture2D>($"Assets/PixelEditor/Editor/Icon/{GetType().Name}.psd");
+            AssetDatabase.LoadAssetAtPath<Texture2D>($"{GetType().Name}.psd");
 
         /// <summary>
         /// Called when a mouse button is pressed with the tool active

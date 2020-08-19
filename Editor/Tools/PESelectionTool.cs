@@ -34,7 +34,7 @@ namespace NoZ.PixelEditor
             // Must move 1 pixel before drawing begins
             DrawThreshold = 1.0f;
 
-            _cursor = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/PixelEditor/Editor/Cursors/Crosshair.psd");
+            _cursor = PEUtils.LoadCursor("Crosshair.psd");
         }
 
         public override void OnDisable()

@@ -7,7 +7,7 @@ namespace NoZ.PixelEditor
 {
     internal class PECanvas : VisualElement
     {
-        private Texture2D _background = null;
+        private Texture _background = null;
         private PEWindow _window = null;
 
         public bool ShowCheckerboard { get; set; } = true;
@@ -19,7 +19,7 @@ namespace NoZ.PixelEditor
             pickingMode = PickingMode.Ignore;
 
             _window = window;
-            _background = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/PixelEditor/Editor/Icons/Grid.psd");
+            _background = PEUtils.LoadImage("Grid.psd");
 
             generateVisualContent += OnGenerateVisualContent;
         }

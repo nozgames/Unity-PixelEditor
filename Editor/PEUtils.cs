@@ -7,12 +7,27 @@ namespace NoZ.PixelEditor
     internal static class PEUtils
     {
         /// <summary>
-        /// Load a texture from a filename or a built-in editor icon
+        /// Load a image texture from a filename or a built-in editor icon
         /// </summary>
-        public static Texture LoadTexture(string name) =>
+        public static Texture2D LoadImage(string name) =>
             name.StartsWith("!") ?
-                EditorGUIUtility.IconContent(name.Substring(1)).image :
-                AssetDatabase.LoadAssetAtPath<Texture>(name);
+                (Texture2D)EditorGUIUtility.IconContent(name.Substring(1)).image :
+                AssetDatabase.LoadAssetAtPath<Texture2D>($"{PixelEditorPackageInfo.assetPackagePath}/Editor Default Resources/images/{name}");
+
+        /// <summary>
+        /// Load a cursor texture from a filename or a built-in editor icon
+        /// </summary>
+        public static Texture2D LoadCursor(string name) =>
+            AssetDatabase.LoadAssetAtPath<Texture2D>($"{PixelEditorPackageInfo.assetPackagePath}/Editor Default Resources/cursors/{name}");
+
+        /// <summary>
+        /// Load a style seet from the package path
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public static StyleSheet LoadStyleSheet(string name) =>
+            AssetDatabase.LoadAssetAtPath<StyleSheet>(
+                $"{PixelEditorPackageInfo.assetPackagePath}/Editor Default Resources/uss/{name}.uss");
 
         /// <summary>
         /// Create a button that is made up of a single image with no border
@@ -21,7 +36,7 @@ namespace NoZ.PixelEditor
         {
             var button = new Image();
             button.AddToClassList("imageButton");
-            button.image = LoadTexture(image);
+            button.image = LoadImage(image);
 
             button.RegisterCallback<ClickEvent>((e) => clicked());
             button.tooltip = tooltip;
@@ -33,8 +48,8 @@ namespace NoZ.PixelEditor
         /// </summary>
         public static VisualElement CreateImageToggle (string image, string tooltip, System.Action<bool> changeCallback, string uncheckedImage=null, string checkedClass=null, bool initialValue = true)
         {
-            var imageChecked = LoadTexture(image);
-            var imageUnchecked = uncheckedImage != null ? LoadTexture(uncheckedImage) : null;
+            var imageChecked = LoadImage(image);
+            var imageUnchecked = uncheckedImage != null ? LoadImage(uncheckedImage) : null;
 
             var toggle = new Image();
             toggle.AddToClassList("toggleImage");

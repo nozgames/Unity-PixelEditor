@@ -14,7 +14,7 @@ namespace NoZ.PixelEditor
 
         public PEEraserTool(PEWindow window) : base(window)
         {
-            _cursor = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/PixelEditor/Editor/Cursors/Crosshair.psd");
+            _cursor = PEUtils.LoadCursor("Crosshair.psd");
         }
 
         public override void SetCursor(Vector2Int canvasPosition)
