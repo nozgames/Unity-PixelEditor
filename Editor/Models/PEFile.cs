@@ -7,6 +7,10 @@ namespace NoZ.PixelEditor
 {
     internal class PEFile
     {
+        public static int CurrentVersion = 1;
+
+        public int version = CurrentVersion;
+
         public string name;
 
         public int width;
@@ -21,11 +25,25 @@ namespace NoZ.PixelEditor
 
         public List<PEFrame> frames;
 
+        public PEFile()
+        {
+            layers = new List<PELayer>();
+            images = new List<PEImage>();
+            frames = new List<PEFrame>();
+            animations = new List<PEAnimation>();
+        }
+
         /// <summary>
         /// Find the animation that matches the given identifier
         /// </summary>
         public PEAnimation FindAnimation(string id) =>
             animations.Where(a => a.id == id).FirstOrDefault();
+
+        /// <summary>
+        /// Find the animation that matches the given identifier
+        /// </summary>
+        public PEAnimation FindAnimationByName(string name) =>
+            animations.Where(a => 0 == string.Compare(a.name,name,true)).FirstOrDefault();
 
         /// <summary>
         /// Find the frame that matches the given identifier
@@ -73,6 +91,75 @@ namespace NoZ.PixelEditor
         }
 
         /// <summary>
+        /// Add a new animation with the given name to the file
+        /// </summary>
+        public PEAnimation AddAnimation(string name)
+        {
+            // ensure name is unique
+            var prefix = name;
+            for(var index=1; null != FindAnimationByName(name); index++)
+                name = $"{prefix} 1";                    
+
+            var animation = new PEAnimation
+            {
+                id = System.Guid.NewGuid().ToString(),
+                name = name
+            };
+            animations.Add(animation);
+            return animation;
+        }
+
+        /// <summary>
+        /// Add a new frame to the given animation
+        /// </summary>
+        public PEFrame AddFrame(PEAnimation animation)
+        {
+            var frame = new PEFrame
+            {
+                id = System.Guid.NewGuid().ToString(),
+                animation = animation,
+                order = frames.Count
+            };
+
+            frames.Add(frame);
+            return frame;
+        }
+
+        /// <summary>
+        /// Insert a new frame at the given index within the animation
+        /// </summary>
+        public PEFrame InsertFrame(PEAnimation animation, int index)
+        {
+            var frame = AddFrame(animation);
+            if (index == -1 || index >= frame.order)
+                return frame;
+
+            foreach (var f in frames)
+                if (f.order >= index)
+                    f.order++;
+
+            frame.order = index;
+            return frame;
+        }
+
+        /// <summary>
+        /// Remove a frame from the file
+        /// </summary>
+        public void RemoveFrame(PEFrame remove)
+        {
+            // Remove all textures that reference the frame
+            images = images.Where(t => t.frame != remove).ToList();
+
+            // Adjust the order for all frames after the frame being removed
+            foreach (var frame in frames)
+                if (frame.order > remove.order)
+                    frame.order--;
+
+            // Remove the frame from the list
+            frames.Remove(remove);
+        }
+
+        /// <summary>
         /// Add a new layer to the file
         /// </summary>
         public PELayer AddLayer ()
@@ -81,7 +168,9 @@ namespace NoZ.PixelEditor
             // maximum layer named "Layer #"
             var nameIndex = layers
                 .Where(l => l.name.StartsWith("Layer "))
-                .Select(l => int.Parse(l.name.Substring(6))).Max() + 1;
+                .Select(l => int.Parse(l.name.Substring(6)))
+                .DefaultIfEmpty()
+                .Max() + 1;
 
             var layer = new PELayer
             {
@@ -104,7 +193,10 @@ namespace NoZ.PixelEditor
             renderTarget.Clear(Color.clear);
 
             foreach (var image in images.Where(t => t.frame == frame).OrderBy(t => t.layer.order))
-                renderTarget.Blend(image.texture, image.layer.opacity);
+                if(image.layer.visible && image.texture != null)
+                    renderTarget.Blend(image.texture, image.layer.opacity);
+
+            renderTarget.Apply();
         }
 
         /// <summary>
@@ -145,6 +237,7 @@ namespace NoZ.PixelEditor
 
             using (var reader = new BinaryReader(File.OpenRead(filename)))
             {
+                var version = reader.ReadInt32();
                 file.width = reader.ReadInt32();
                 file.height = reader.ReadInt32();
 
@@ -152,8 +245,7 @@ namespace NoZ.PixelEditor
 
                 // Read the layers
                 var layerCount = reader.ReadInt32();
-                file.layers = new List<PELayer>(layerCount);
-                for(var layerIndex=0; layerIndex<layerCount; layerIndex++)
+                for (var layerIndex=0; layerIndex<layerCount; layerIndex++)
                 {
                     var layer = new PELayer();
                     layer.id = reader.ReadString();
@@ -166,7 +258,6 @@ namespace NoZ.PixelEditor
 
                 // Read the animations
                 var animationCount = reader.ReadInt32();
-                file.animations = new List<PEAnimation>(animationCount);
                 for(var animationIndex=0; animationIndex < animationCount; animationIndex++)
                 {
                     var animation = new PEAnimation();
@@ -177,7 +268,6 @@ namespace NoZ.PixelEditor
 
                 // Read the frames
                 var frameCount = reader.ReadInt32();
-                file.frames = new List<PEFrame>(frameCount);
                 for(var frameIndex=0; frameIndex < frameCount; frameIndex++)
                 {
                     var frame = new PEFrame();
@@ -189,17 +279,19 @@ namespace NoZ.PixelEditor
 
                 // Read the textures
                 var imageCount = reader.ReadInt32();
-                file.images = new List<PEImage>(imageCount);
-                for(var imageIndex=0; imageIndex<imageCount; imageIndex++)
+                for (var imageIndex=0; imageIndex<imageCount; imageIndex++)
                 {
                     var image = new PEImage();
                     image.frame = file.FindFrame(reader.ReadString());
                     image.layer = file.FindLayer(reader.ReadString());
 
-                    image.texture = new Texture2D(file.width, file.height, TextureFormat.RGBA32, false);
-                    image.texture.LoadRawTextureData(reader.ReadBytes(textureSize));
-                    image.texture.filterMode = FilterMode.Point;
-                    image.texture.Apply();
+                    if (reader.ReadBoolean())
+                    {
+                        image.texture = new Texture2D(file.width, file.height, TextureFormat.RGBA32, false);
+                        image.texture.LoadRawTextureData(reader.ReadBytes(textureSize));
+                        image.texture.filterMode = FilterMode.Point;
+                        image.texture.Apply();
+                    }
 
                     file.images.Add(image);
                 }
@@ -212,6 +304,7 @@ namespace NoZ.PixelEditor
         {
             using(var writer = new BinaryWriter(File.Create(filename)))
             {
+                writer.Write(version);
                 writer.Write(width);
                 writer.Write(height);
 
@@ -249,7 +342,11 @@ namespace NoZ.PixelEditor
                 {
                     writer.Write(image.frame.id);
                     writer.Write(image.layer.id);
-                    writer.Write(image.texture.GetRawTextureData());
+
+                    writer.Write(image.texture != null);
+                    
+                    if(image.texture != null)
+                        writer.Write(image.texture.GetRawTextureData());
                 }
             }
         }

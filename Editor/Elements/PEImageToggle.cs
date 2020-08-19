@@ -17,9 +17,11 @@ namespace NoZ.PixelEditor
         public PEImageToggle()
         {
             pickingMode = PickingMode.Position;
+            focusable = true;
             AddToClassList("noz-imageToggle");
             _image = new Image();
             Add(_image);
+            RegisterCallback<MouseDownEvent>((e) => e.StopPropagation());
             RegisterCallback<ClickEvent>(OnClicked);
             AddToClassList("noz-imageToggle-checked");
         }

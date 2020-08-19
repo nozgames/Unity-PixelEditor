@@ -23,6 +23,7 @@ namespace NoZ.PixelEditor
         private VisualElement _workspace = null;
         private VisualElement _toolbox = null;
         private PEReorderableList _layers = null;
+        private PEReorderableList _frames = null;
         private ScrollView _scrollView = null;
         private PEGrid _grid = null;
         private Toolbar _toolbar = null;
@@ -41,6 +42,7 @@ namespace NoZ.PixelEditor
         private Vector2 _drawLast;
         private PETool _currentTool = null;
         private PELayer _currentLayer = null;
+        private PEFrame _currentFrame = null;
         private Vector2 _lastMousePosition;
         private PETool _previousTool = null;
 
@@ -90,29 +92,28 @@ namespace NoZ.PixelEditor
 
                 _currentLayer = value;
 
-                for(int itemIndex=0; itemIndex<_layers.itemCount; itemIndex++)
-                {
-                    var item = _layers.ItemAt(itemIndex);
-                    var layer = (PELayer)item.userData;
-                    if (layer == _currentLayer)
-                    {
-                        _layers.Select(itemIndex);
-                        break;
-                    }
-                }
+                Debug.Log($"CurrentLayer: {_currentLayer?.name ?? "None"}");
+
+                _layers.Select(_layers.itemCount - _currentLayer.order - 1);
             }
         }
 
-        public PEFrame CurrentFrame { get; private set; }
+        public PEFrame CurrentFrame {
+            get => _currentFrame;
+            set {
+                if (value == _currentFrame)
+                    return;
 
-        public Color ForegroundColor {
-            get => _foregroundColor.value;
-            set => _foregroundColor.value = value;
-        }
+                _currentFrame = value;
 
-        public Color BackgroundColor {
-            get => _backgroundColor.value;
-            set => _backgroundColor.value = value;
+                if(_currentFrame != null)
+                    _frames.Select(_currentFrame.order);
+
+                for (int itemIndex = 0; itemIndex < _layers.itemCount; itemIndex++)
+                    _layers.ItemAt(itemIndex).MarkDirtyRepaint();
+
+                RefreshCanvas();
+            }
         }
 
         public PETool CurrentTool {
@@ -149,12 +150,21 @@ namespace NoZ.PixelEditor
             }
         }
 
+        public Color ForegroundColor {
+            get => _foregroundColor.value;
+            set => _foregroundColor.value = value;
+        }
+
+        public Color BackgroundColor {
+            get => _backgroundColor.value;
+            set => _backgroundColor.value = value;
+        }
+
         [MenuItem("Window/2D/Pixel Editor")]
         public static void OpenWindow ()
         {
             GetWindow<PEWindow>();
         }
-
 
         [UnityEditor.Callbacks.OnOpenAsset(1)]
         public static bool OnOpenAsset(int instanceID, int line)
@@ -271,6 +281,7 @@ namespace NoZ.PixelEditor
             _workspaceCursor.pickingMode = PickingMode.Ignore;
             _workspace.Add(_workspaceCursor);
 
+            CreateFramesPopup();
             CreateLayersPopup();
             CreateToolBox();
 
@@ -278,6 +289,7 @@ namespace NoZ.PixelEditor
             CurrentTool = _toolPencil;
 
             Undo.undoRedoPerformed += OnUndoRedo;
+            EditorApplication.quitting += CloseFile;
 
             // Load the Saved preferences
             ForegroundColor = ColorUtility.TryParseHtmlString(EditorPrefs.GetString("PixelEditor.ForegroundColor"), out var foregroundColor) ? 
@@ -303,6 +315,7 @@ namespace NoZ.PixelEditor
             EditorPrefs.SetString("PixelEditor.ForegroundColor", $"#{ColorUtility.ToHtmlStringRGBA(ForegroundColor)}");
             EditorPrefs.SetString("PixelEditor.BackgroundColor", $"#{ColorUtility.ToHtmlStringRGBA(BackgroundColor)}");
 
+            EditorApplication.quitting -= CloseFile;
             Undo.undoRedoPerformed -= OnUndoRedo;
         }
 
@@ -412,10 +425,11 @@ namespace NoZ.PixelEditor
             CurrentTool.MarkDirtyRepaint();
             Canvas.MarkDirtyRepaint();
 
+            UpdateLayers();
+            UpdateFrames();
+
             CurrentLayer = CurrentFile.layers[0];
             CurrentFrame = CurrentFile.frames[0];
-
-            UpdateLayers();
 
             _editor.visible = true;
             _empty.visible = false;
@@ -423,7 +437,7 @@ namespace NoZ.PixelEditor
             UpdateScrollView();
 
             ZoomToFit();
-        }
+        }       
 
         /// <summary>
         /// Save the currently open file
@@ -727,10 +741,17 @@ namespace NoZ.PixelEditor
             _zoomSlider.RegisterValueChangedCallback(OnZoomValueChanged);
             _toolbar.Add(_zoomSlider);
 
+            var framesToggle = new PEImageToggle();
+            framesToggle.checkedImage = PEUtils.LoadImage("FramesToggle.psd");
+            framesToggle.value = true;
+            framesToggle.onValueChanged = (v) => _frames.parent.visible = v;
+            framesToggle.tooltip = "Toggle Frames";
+            _toolbar.Add(framesToggle);
+
             var layerToggle = new PEImageToggle();
             layerToggle.checkedImage = PEUtils.LoadImage("LayerToggle.psd");
             layerToggle.value = true;
-            layerToggle.onValueChanged = (v) => _layers.parent.visible = v;
+            layerToggle.onValueChanged = (v) => _layers.parent.parent.visible = v;
             layerToggle.tooltip = "Toggle layers";
             _toolbar.Add(layerToggle);
 
@@ -799,7 +820,7 @@ namespace NoZ.PixelEditor
             var addedLayer = CurrentFile.AddLayer();
             UpdateLayers();
             CurrentLayer = addedLayer;
-            Canvas.MarkDirtyRepaint();
+            RefreshCanvas();
         }
 
         private void RemoveLayer()
@@ -811,9 +832,9 @@ namespace NoZ.PixelEditor
             var order = CurrentLayer.order;
             CurrentFile.RemoveLayer(CurrentLayer);
             UpdateLayers();
-            order = Mathf.Min(order, CurrentFile.layers.Count - 1);
-            CurrentLayer = CurrentFile.layers.Where(l => l.order == order).FirstOrDefault();
-            Canvas.MarkDirtyRepaint();
+            _layers.Select(Mathf.Min(order, CurrentFile.layers.Count - 1));
+
+            RefreshCanvas();
         }
 
         private void UpdateLayers()
@@ -823,33 +844,8 @@ namespace NoZ.PixelEditor
             if (CurrentFile == null)
                 return;
 
-            foreach(var layer in CurrentFile.layers.OrderByDescending(l => l.order))
-            {
-                var layerElement = new VisualElement();
-                layerElement.pickingMode = PickingMode.Position;
-                layerElement.focusable = true;
-                layerElement.AddToClassList("layer");
-                layerElement.userData = layer;
-                //layerElemnet.RegisterCallback<ClickEvent>((e) => CurrentLayer = layer);
-
-                var visibilityToggle = new PEImageToggle();
-                visibilityToggle.checkedImage = PEUtils.LoadImage("!scenevis_visible");
-                visibilityToggle.uncheckedImage = PEUtils.LoadImage("!scenevis_hidden");
-                visibilityToggle.onValueChanged = (v) => { layer.visible = v; Canvas.MarkDirtyRepaint(); };
-                visibilityToggle.value = layer.visible;
-                visibilityToggle.tooltip = "Toggle layer visibility";
-                layerElement.Add(visibilityToggle);
-
-                var layerPreview = new Image();
-                layerPreview.AddToClassList("layerPreview");
-                layerPreview.image = CurrentFile.FindImage(CurrentFile.frames[0], layer)?.texture;
-                layerElement.Add(layerPreview);
-
-                var layerName = new Label(layer.name);
-                layerElement.Add(layerName);
-
-                _layers.AddItem(layerElement);
-            }
+            foreach (var layer in CurrentFile.layers.OrderByDescending(l => l.order))
+                _layers.AddItem(new PELayerElement(this, layer));
 
             _layers.Select(0);
         }
@@ -927,6 +923,104 @@ namespace NoZ.PixelEditor
             _workspaceCursor.visible = false;
         }
 
+        /// <summary>
+        /// Add a new empty frame
+        /// </summary>
+        private void AddFrame()
+        {
+            CurrentFile.AddFrame(CurrentAnimation);
+            UpdateFrames();
+        }
+
+        /// <summary>
+        /// Duplicate the selected frame
+        /// </summary>
+        private void DuplicatFrame()
+        {
+            if (CurrentFrame == null)
+                return;
+
+            var frame = CurrentFile.InsertFrame(CurrentAnimation, CurrentFrame.order+1);
+            CurrentFile.images.AddRange(
+                CurrentFile.images.Where(i => i.frame == CurrentFrame).Select(i => new PEImage
+                {
+                    frame = frame,
+                    layer = i.layer,
+                    texture = i.texture.Clone()
+                }).ToList());
+
+            UpdateFrames();
+            CurrentFrame = frame;
+        }
+
+        private void RemoveFrame()
+        {
+            // Dont allow the last layer to be removed
+            if (CurrentFile.frames.Count < 2)
+                return;
+
+            var order = CurrentFrame.order;
+            CurrentFile.RemoveFrame(CurrentFrame);
+            UpdateFrames();
+            _frames.Select(Mathf.Min(order, CurrentFile.frames.Count - 1));
+            Canvas.MarkDirtyRepaint();
+        }
+
+        private void CreateFramesPopup()
+        {
+            var popup = new UnityEngine.UIElements.PopupWindow();
+            popup.name = "FramesPopup";
+            popup.text = "Frames";
+            popup.AddStyleSheetPath("FramesPopup");
+            _editor.Add(popup);
+
+            var toolbarSpacer = new VisualElement();
+            toolbarSpacer.AddToClassList("spacer");
+
+            var toolbar = new VisualElement();
+            toolbar.name = "Toolbar";
+            toolbar.Add(toolbarSpacer);
+            toolbar.Add(PEUtils.CreateImageButton("LayerAdd.psd", "Create a new frame", AddFrame));
+            toolbar.Add(PEUtils.CreateImageButton("Duplicate.psd", "Duplicate selected frame", DuplicatFrame));
+            toolbar.Add(PEUtils.CreateImageButton("Delete.psd", "Delete layer", RemoveFrame));
+            popup.Add(toolbar);
+
+            _frames = new PEReorderableList();
+            _frames.name = "Frames";
+            _frames.direction = ReorderableListDirection.Horizontal;
+            _frames.onItemMoved += (oldIndex, newIndex) =>
+            {
+                for (int itemIndex = 0; itemIndex < _frames.itemCount; itemIndex++)
+                    ((PEFrame)_frames.ItemAt(itemIndex).userData).order = itemIndex;
+
+                Canvas.MarkDirtyRepaint();
+            };
+            _frames.onItemSelected += (i) => CurrentFrame = (PEFrame)_frames.ItemAt(i).userData;
+            popup.Add(_frames);
+
+            UpdateFrames();
+        }
+
+        private void UpdateFrames()
+        {
+            _frames.RemoveAllItems();
+
+            if (null == CurrentFile)
+                return;
+
+            foreach(var frame in CurrentFile.frames.OrderBy(f => f.order))
+            {
+                var frameElement = new VisualElement();
+                frameElement.userData = frame;
+                frameElement.AddToClassList("frame");
+
+                var image = new Image();
+                image.image = CurrentFile.RenderFrame(frame);
+                frameElement.Add(image);
+
+                _frames.AddItem(frameElement);
+            }
+        }
 
         private void CreateLayersPopup()
         {
@@ -947,17 +1041,34 @@ namespace NoZ.PixelEditor
 
             _layers = new PEReorderableList();
             _layers.AddToClassList("layers");
-            _layers.onElementMoved += (oldIndex, newIndex) =>
+            _layers.onItemMoved += (oldIndex, newIndex) =>
             {
                 for (int itemIndex = 0; itemIndex < _layers.itemCount; itemIndex++)
-                    ((PELayer)_layers.ItemAt(itemIndex).userData).order = _layers.itemCount - itemIndex - 1;
+                    ((PELayerElement)_layers.ItemAt(itemIndex)).Layer.order = _layers.itemCount - itemIndex - 1;
 
-                Canvas.MarkDirtyRepaint();
+                Canvas.MarkDirtyRepaint();                
             };
+            _layers.onItemSelected += (i) => CurrentLayer = ((PELayerElement)_layers.ItemAt(i)).Layer;
+
             layersContainer.Add(_layers);
             popup.Add(layersContainer);
 
             UpdateLayers();
+        }
+
+        public void RefreshCanvas()
+        {
+            if (null == _frames || null == CurrentFrame)
+                return;
+
+            var framePreview = _frames.ItemAt(CurrentFrame.order).Query<Image>().First();
+            CurrentFile.RenderFrame(CurrentFrame, (Texture2D)framePreview.image);
+            framePreview.MarkDirtyRepaint();
+
+            for (int itemIndex = 0; itemIndex < _layers.itemCount; itemIndex++)
+                ((PELayerElement)_layers.ItemAt(itemIndex)).RefreshPreview();
+
+            Canvas.MarkDirtyRepaint();
         }
     }
 }

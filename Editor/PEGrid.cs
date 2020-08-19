@@ -40,6 +40,9 @@ namespace NoZ.PixelEditor
 
         protected override void ImmediateRepaint()
         {
+            if (_window.CanvasHeight == 0 || _window.CanvasWidth == 0)
+                return;
+
             var alpha = Mathf.Clamp((_window.Zoom - ZoomAlphaZero) / (ZoomAlphaOne - ZoomAlphaZero), AlphaMin, AlphaMax);
             var size = new Vector2(_window.CanvasWidth  * _window.Zoom, _window.CanvasHeight * _window.Zoom);
             var center = contentRect.center;

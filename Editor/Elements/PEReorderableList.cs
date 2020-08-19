@@ -1,11 +1,16 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace NoZ.PixelEditor
 {
     using PositionType = UnityEngine.UIElements.Position;
+
+    internal enum ReorderableListDirection
+    {
+        Horizontal,
+        Vertical
+    }
 
     internal class ItemDragger : Manipulator
     {
@@ -41,20 +46,20 @@ namespace NoZ.PixelEditor
 
         protected void OnMouseDown(MouseDownEvent evt)
         {
-            if (evt.button == 0)
-            {
-                evt.StopPropagation();
-                target.CaptureMouse();
-                _startPosition = _root.WorldToLocal(evt.mousePosition);
-                target.RegisterCallback<MouseMoveEvent>(OnMouseMove);
-                _context = _root.StartDragging(_line);
-            }
+            if (evt.button != 0)
+                return;
+
+            evt.StopPropagation();
+            target.CaptureMouse();
+            _startPosition = _root.WorldToLocal(evt.mousePosition);
+            target.RegisterCallback<MouseMoveEvent>(OnMouseMove);
         }
 
         protected void OnMouseUp(MouseUpEvent evt)
         {
-            Vector2 listRelativeMouse = _root.WorldToLocal(evt.mousePosition);
-            _root.EndDragging(_context, _line, listRelativeMouse.y - _startPosition.y, evt.mousePosition);
+            if(_context != null)
+               _root.EndDragging(_context, _line, evt.mousePosition);
+
             evt.StopPropagation();
             Release();
         }
@@ -62,7 +67,15 @@ namespace NoZ.PixelEditor
         protected void OnMouseMove(MouseMoveEvent evt)
         {
             evt.StopPropagation();
-            _root.ItemDragging(_context, _line, _root.WorldToLocal(evt.mousePosition).y - _startPosition.y, evt.mousePosition);
+
+            var position = _root.WorldToLocal(evt.mousePosition);
+            if (_context == null && (position - _startPosition).magnitude > 2)
+            {
+                _startPosition = position;
+                _context = _root.StartDragging(_line);
+            }
+            else if (_context != null)
+                _root.ItemDragging(_context, _line, _root.WorldToLocal(evt.mousePosition) - _startPosition, evt.mousePosition);
         }
     }
 
@@ -91,9 +104,11 @@ namespace NoZ.PixelEditor
         private int _selectedLine = -1;
         private VisualElement _itemsContainer = null;
 
-        public delegate void ElementMovedDelegate(int movedIndex, int targetIndex);
+        public delegate void ItemSelectedDelegate(int selectedIndex);
+        public delegate void ItemMovedDelegate(int movedIndex, int targetIndex);
 
-        public event ElementMovedDelegate onElementMoved;
+        public event ItemMovedDelegate onItemMoved;
+        public event ItemSelectedDelegate onItemSelected;
 
         private class DraggingContext
         {
@@ -103,8 +118,15 @@ namespace NoZ.PixelEditor
             public int draggedIndex;
         }
 
+        public ReorderableListDirection direction { get; set; } = ReorderableListDirection.Vertical;
+
         public void Select(int index)
         {
+            index = Mathf.Clamp(index, -1, _itemsContainer.childCount - 1);
+
+            if (_selectedLine == index)
+                return;
+
             if (_selectedLine != -1 && _selectedLine < _itemsContainer.childCount)
                 _itemsContainer.ElementAt(_selectedLine).RemoveFromClassList("selected");
 
@@ -112,6 +134,9 @@ namespace NoZ.PixelEditor
 
             if (_selectedLine != -1 && _selectedLine < _itemsContainer.childCount)
                 _itemsContainer.ElementAt(_selectedLine).AddToClassList("selected");
+
+            if(_selectedLine >= 0)
+                onItemSelected?.Invoke(_selectedLine);
         }
 
         /// <summary>
@@ -151,10 +176,9 @@ namespace NoZ.PixelEditor
             return context;
         }
 
-        public void EndDragging(object ctx, VisualElement item, float offset, Vector2 mouseWorldPosition)
+        public void EndDragging(object ctx, VisualElement item, Vector2 mouseWorldPosition)
         {
             var context = (DraggingContext)ctx;
-
             foreach (var child in _itemsContainer.Children())
                 child.ResetPositionProperties();
 
@@ -166,54 +190,77 @@ namespace NoZ.PixelEditor
                 ElementMoved(context.draggedIndex, hoveredIndex);
         }
 
-        public void ItemDragging(object ctx, VisualElement item, float offset, Vector2 mouseWorldPosition)
+        public void ItemDragging(object ctx, VisualElement item, Vector2 offset, Vector2 mouseWorldPosition)
         {
             var context = (DraggingContext)ctx;
             var hoveredIndex = GetHoveredIndex(context, mouseWorldPosition);
 
-            item.style.top = context.originalPositions[context.draggedIndex].y + offset;            
-
-            if (hoveredIndex != -1)
+            if (direction == ReorderableListDirection.Vertical)
             {
-                float draggedHeight = context.originalPositions[context.draggedIndex].height;
+                item.style.top = context.originalPositions[context.draggedIndex].y + offset.y;
 
-                if (hoveredIndex < context.draggedIndex)
+                if (hoveredIndex != -1)
                 {
-                    for (int i = 0; i < hoveredIndex; ++i)
+                    var draggedHeight = context.originalPositions[context.draggedIndex].height;
+
+                    if (hoveredIndex < context.draggedIndex)
                     {
-                        context.items[i].style.top = context.originalPositions[i].y;
+                        for (int i = 0; i < hoveredIndex; ++i)
+                            context.items[i].style.top = context.originalPositions[i].y;
+                        for (int i = hoveredIndex; i < context.draggedIndex; ++i)
+                            context.items[i].style.top = context.originalPositions[i].y + draggedHeight;
+                        for (int i = context.draggedIndex + 1; i < context.items.Length; ++i)
+                            context.items[i].style.top = context.originalPositions[i].y;
                     }
-                    for (int i = hoveredIndex; i < context.draggedIndex; ++i)
+                    else if (hoveredIndex > context.draggedIndex)
                     {
-                        context.items[i].style.top = context.originalPositions[i].y + draggedHeight;
-                    }
-                    for (int i = context.draggedIndex + 1; i < context.items.Length; ++i)
-                    {
-                        context.items[i].style.top = context.originalPositions[i].y;
+                        for (int i = 0; i < context.draggedIndex; ++i)
+                            context.items[i].style.top = context.originalPositions[i].y;
+                        for (int i = hoveredIndex; i > context.draggedIndex; --i)
+                            context.items[i].style.top = context.originalPositions[i].y - draggedHeight;
+                        for (int i = hoveredIndex + 1; i < context.items.Length; ++i)
+                            context.items[i].style.top = context.originalPositions[i].y;
                     }
                 }
-                else if (hoveredIndex > context.draggedIndex)
+                else
                 {
-                    for (int i = 0; i < context.draggedIndex; ++i)
-                    {
-                        context.items[i].style.top = context.originalPositions[i].y;
-                    }
-                    for (int i = hoveredIndex; i > context.draggedIndex; --i)
-                    {
-                        context.items[i].style.top = context.originalPositions[i].y - draggedHeight;
-                    }
-                    for (int i = hoveredIndex + 1; i < context.items.Length; ++i)
-                    {
-                        context.items[i].style.top = context.originalPositions[i].y;
-                    }
+                    for (int i = 0; i < context.items.Length; ++i)
+                        if (i != context.draggedIndex)
+                            context.items[i].style.top = context.originalPositions[i].y;
                 }
             }
             else
             {
-                for (int i = 0; i < context.items.Length; ++i)
+                item.style.left = context.originalPositions[context.draggedIndex].x + offset.x;
+
+                if (hoveredIndex != -1)
                 {
-                    if (i != context.draggedIndex)
-                        context.items[i].style.top = context.originalPositions[i].y;
+                    var draggedWidth = context.originalPositions[context.draggedIndex].width;
+
+                    if (hoveredIndex < context.draggedIndex)
+                    {
+                        for (int i = 0; i < hoveredIndex; ++i)
+                            context.items[i].style.left = context.originalPositions[i].x;
+                        for (int i = hoveredIndex; i < context.draggedIndex; ++i)
+                            context.items[i].style.left = context.originalPositions[i].x + draggedWidth;
+                        for (int i = context.draggedIndex + 1; i < context.items.Length; ++i)
+                            context.items[i].style.left = context.originalPositions[i].x;
+                    }
+                    else if (hoveredIndex > context.draggedIndex)
+                    {
+                        for (int i = 0; i < context.draggedIndex; ++i)
+                            context.items[i].style.left = context.originalPositions[i].x;
+                        for (int i = hoveredIndex; i > context.draggedIndex; --i)
+                            context.items[i].style.left = context.originalPositions[i].x - draggedWidth;
+                        for (int i = hoveredIndex + 1; i < context.items.Length; ++i)
+                            context.items[i].style.left = context.originalPositions[i].x;
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < context.items.Length; ++i)
+                        if (i != context.draggedIndex)
+                            context.items[i].style.left = context.originalPositions[i].x;
                 }
             }
         }
@@ -238,13 +285,13 @@ namespace NoZ.PixelEditor
             if (_selectedLine == movedIndex)
                 _selectedLine = targetIndex;
 
-            onElementMoved?.Invoke(movedIndex, targetIndex);
+            onItemMoved?.Invoke(movedIndex, targetIndex);
         }
 
         
         public PEReorderableList()
         {
-            _itemsContainer = new VisualElement { name = "ListContainer" };
+            _itemsContainer = new VisualElement { name = "ItemsContainer" };
 
             Add(_itemsContainer);
 

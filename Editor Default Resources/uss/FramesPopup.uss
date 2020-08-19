@@ -1,0 +1,41 @@
+#FramesPopup
+{
+	position: absolute;
+	bottom: 20px;
+	left: 20px;
+	right: 20px;
+}
+
+.frame
+{
+	padding: 4px;
+}
+
+.frame > Image
+{
+	width: 64px;
+	height: 64px;
+	background-color: #202020;
+}
+
+.ReorderableList > #ItemsContainer
+{
+	flex-direction: row;
+}
+
+#Toolbar
+{
+    margin-bottom: 4px;
+    flex-direction: row;
+    padding-left: 4px;
+}
+
+#Toolbar>.imageButton
+{
+    margin-right: 4px;
+}
+
+#Toolbar > .spacer
+{
+	flex-grow: 1;
+}

@@ -1,12 +1,22 @@
 ﻿using System;
 using UnityEngine;
-using UnityEngine.Experimental.GlobalIllumination;
-using UnityEngine.UI;
 
 namespace NoZ.PixelEditor
 {
     public static class Texture2DExtensions
     {
+        /// <summary>
+        /// Create a clone of the given texture.
+        /// </summary>
+        public static Texture2D Clone (this Texture2D texture)
+        {
+            var clone = new Texture2D(texture.width, texture.height, texture.format, false);
+            clone.filterMode = texture.filterMode;
+            clone.SetPixels32(texture.GetPixels32());
+            clone.Apply();
+            return clone;
+        }
+
         /// <summary>
         /// Clear the texture with the given color
         /// </summary>

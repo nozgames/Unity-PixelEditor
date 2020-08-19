@@ -10,7 +10,7 @@ namespace NoZ.PixelEditor
         private Color _drawColor;
 
         public PEBrushTool(PEWindow window) : base(window)
-        {            
+        {
         }
 
         protected virtual Color GetDrawColor(MouseButton button) => Color.white;
@@ -40,7 +40,7 @@ namespace NoZ.PixelEditor
 
         public override void OnDrawStart(PEDrawEvent evt)
         {
-            if(!evt.shift || _drawPosition == null)
+            if (!evt.shift || _drawPosition == null)
                 _drawPosition = CanvasToTexture(evt.canvasPosition);
 
             _drawColor = GetDrawColor(evt.button);
@@ -51,7 +51,10 @@ namespace NoZ.PixelEditor
         public override void OnDrawContinue(PEDrawEvent evt) =>
             DrawTo(evt.canvasPosition);
 
-        public override void OnDrawEnd(PEDrawEvent evt, bool cancelled) =>
+        public override void OnDrawEnd(PEDrawEvent evt, bool cancelled)
+        {
             _target = null;
+            Window.RefreshCanvas();
+        }
     }
 }

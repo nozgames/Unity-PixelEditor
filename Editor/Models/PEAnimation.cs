@@ -13,15 +13,5 @@ namespace NoZ.PixelEditor
         /// Name of the animation
         /// </summary>
         public string name;
-
-        /// <summary>
-        /// List of all textures in the animation
-        /// </summary>
-        public List<PEImage> textures = null;
-
-        /// <summary>
-        /// List of all frames in the animation
-        /// </summary>
-        public List<PEFrame> frames = null;
     }
 }
