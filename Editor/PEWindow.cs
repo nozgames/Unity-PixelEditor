@@ -319,6 +319,12 @@ namespace NoZ.PixelEditor
             Undo.undoRedoPerformed -= OnUndoRedo;
         }
 
+        private void OnFocus()
+        {
+            if (IsEditing)
+                _editor.Focus();
+        }
+
         private void Update()
         {
             // Automatically close the current file if the asset is deleted
@@ -789,17 +795,15 @@ namespace NoZ.PixelEditor
             CreateToolBoxButton(_toolPencil, "PencilTool.psd", "Pencil Tool (B)");
             CreateToolBoxButton(_toolEraser, "EraserTool.psd", "Eraser Tool (E)");
             CreateToolBoxButton(_toolEyeDropper, "EyeDropperTool.psd", "Eyedropper Tool (I)");
-
+           
             _foregroundColor = new ColorField();
             _foregroundColor.showEyeDropper = false;
             _foregroundColor.value = Color.white;
-            _foregroundColor.RegisterValueChangedCallback((e) => _editor.Focus());
             _toolbox.Add(_foregroundColor);
 
             _backgroundColor = new ColorField();
             _backgroundColor.showEyeDropper = false;
             _backgroundColor.value = Color.white;
-            _backgroundColor.RegisterValueChangedCallback((e) => _editor.Focus());
             _toolbox.Add(_backgroundColor);
 
             _editor.Add(_toolbox);
