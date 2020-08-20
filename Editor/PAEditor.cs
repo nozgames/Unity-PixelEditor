@@ -68,11 +68,11 @@ namespace NoZ.PA
             var toolbox = CreateToolBox();
             topPane.Add(toolbox);
 
-            var rightSplitter = new TwoPaneSplitView(1, 200, TwoPaneSplitViewOrientation.Horizontal);
+            var rightSplitter = new VisualElement(); //  new TwoPaneSplitView(1, 200, TwoPaneSplitViewOrientation.Horizontal);
             rightSplitter.name = "RightSplitter";
             topPane.Add(rightSplitter);
 
-            var centerPane = new VisualElement();
+            var centerPane = new VisualElement { name = "CenterPane" };
             rightSplitter.Add(centerPane);
 
             var rightPane = new VisualElement { name = "RightPane" };
@@ -318,7 +318,7 @@ namespace NoZ.PA
             zoomImage.image = PAUtils.LoadImage("ZoomIcon.psd");
             Toolbar.Add(zoomImage);
 
-            _zoomSlider = new Slider();
+            _zoomSlider = new Slider { name = "ZoomSlider" };
             _zoomSlider.lowValue = PAWorkspace.ZoomMin;
             _zoomSlider.highValue = PAWorkspace.ZoomMax;
             _zoomSlider.AddToClassList("zoom");

@@ -216,7 +216,7 @@ namespace NoZ.PA
         /// Returns the canvas rectangle in workspace coordinates
         /// </summary>
         public Rect CanvasRect =>
-            new Rect(Size - (Vector2)CanvasSize * Zoom * 0.5f, (Vector2)CanvasSize * Zoom);
+            new Rect(_content.contentRect.min + _content.contentRect.size * 0.5f - (Vector2)CanvasSize * Zoom * 0.5f, (Vector2)CanvasSize * Zoom);
 
         public PAWorkspace()
         {            
@@ -264,22 +264,25 @@ namespace NoZ.PA
 
             // Create an element to manage the workspace cursor
             _workspaceCursor = new WorkspaceCursorManager();
-            _workspaceCursor.AddToClassList("stretchFit");
+            _workspaceCursor.StretchToParentSize();
             _workspaceCursor.pickingMode = PickingMode.Ignore;
-            Add(_workspaceCursor);
+            _content.Add(_workspaceCursor);
         }
 
         /// <summary>
         /// Refresh the canvas renderer
         /// </summary>
-        public void RefreshCanvas()
+        public void RefreshCanvas(bool includePreviews=true)
         {
-            // Update frame preview of selected frame
-            SelectedFrame.Item?.RefreshPreview();
+            if(includePreviews)
+            {
+                // Update frame preview of selected frame
+                SelectedFrame.Item?.RefreshPreview();
 
-            // Update all layer previews
-            foreach (var layer in File.layers)
-                layer.Item?.RefreshPreview(SelectedFrame);
+                // Update all layer previews
+                foreach (var layer in File.layers)
+                    layer.Item?.RefreshPreview(SelectedFrame);
+            }
 
             Canvas.MarkDirtyRepaint();
         }

@@ -82,7 +82,7 @@ namespace NoZ.PA
             Handles.color = Color.white;
             Handles.DrawSolidRectangleWithOutline(new Rect(min, max-min), IsDrawing ? FillColor : Color.clear, BorderColor);
 
-            if(!IsDrawing)
+            if (!IsDrawing)
             {
                 var gripSize = new Vector2(8, 8);
                 Handles.DrawSolidRectangleWithOutline(new Rect(min - gripSize * 0.5f, gripSize), Color.white, BorderColor);

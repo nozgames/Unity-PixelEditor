@@ -36,7 +36,7 @@ namespace NoZ.PA
 
             _target.texture.Apply();
 
-            Workspace.RefreshCanvas();
+            Workspace.RefreshCanvas(false);
         }
 
         public override void OnDrawStart(PADrawEvent evt)

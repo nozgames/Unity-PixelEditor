@@ -19,7 +19,7 @@ namespace NoZ.PA
             focusable = true;
             AddToClassList("layer");
 
-            var visibilityToggle = new PAImageToggle();
+            var visibilityToggle = new PAImageToggle { name = "VisibleToggle" };
             visibilityToggle.checkedImage = PAUtils.LoadImage("!scenevis_visible");
             visibilityToggle.uncheckedImage = PAUtils.LoadImage("!scenevis_hidden");
             visibilityToggle.value = layer.visible;

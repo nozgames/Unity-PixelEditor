@@ -30,6 +30,7 @@ ScrollView
 {
 	min-height: 118px;
 	border-top-width: 1px;
+	border-color: #232323;
 }
 
 #BottomPane > ScrollView 
@@ -128,6 +129,12 @@ ScrollView
 	flex-grow: 1;
 }
 
+#Layers
+{
+	border-bottom-width: 1px;
+	border-color: #232323;
+}
+
 #LayersPane > ScrollView
 {
 	margin-top: 0px;	
@@ -157,17 +164,20 @@ ScrollView
 
 #RightSplitter
 {
-	min-height: 100px;
+	flex-grow: 1;	
+	flex-direction: row;
 }
 
 #RightPane > ScrollView
-{
+{	
 	flex-grow: 1;
 }
 
 #RightPane
 {
-	min-width: 200px;
+	border-left-width: 1px;
+	border-color: #232323;
+	min-width: 150px;
 }
 
 #Preview
@@ -186,6 +196,18 @@ ScrollView
 	border-bottom-width: 1px;
 	border-color: #232323;
 	padding: 16px;
+}
+
+#CenterPane
+{
+	flex-grow: 1;
+	flex-direction: column;
+}
+
+#ZoomSlider
+{
+	min-width: 80px;
+	margin-right: 16px;
 }
 
 #Toolbar > .noz-imageToggle-checked
@@ -242,6 +264,12 @@ ScrollView
 {
 	flex-direction: row;
 	flex-grow: 1;
+}
+
+#VisibleToggle
+{
+	margin-left: 8px;
+	margin-right: 8px;
 }
 
 #Workspace
