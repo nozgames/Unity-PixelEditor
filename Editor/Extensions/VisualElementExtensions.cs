@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 
-namespace NoZ.PixelEditor
+namespace NoZ.PA
 {
     static class VisualElementExtensions
     {
@@ -27,7 +27,7 @@ namespace NoZ.PixelEditor
 
         public static void AddStyleSheetPath(this VisualElement visualElement, string path)
         {
-            var sheet = PEUtils.LoadStyleSheet(path);
+            var sheet = PAUtils.LoadStyleSheet(path);
             if (sheet != null)
                 visualElement.styleSheets.Add(sheet);
         }

@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace NoZ.PixelEditor
+namespace NoZ.PA
 {
     public static class Texture2DExtensions
     {

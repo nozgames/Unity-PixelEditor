@@ -1,0 +1,250 @@
+.imageButton
+{
+    padding: 4px;
+}
+
+.imageButton>Image
+{
+    width: 24px;
+    height: 24px;
+}
+
+.imageButton:hover
+{
+    background-color:#444444;
+    border-radius: 2px;
+}
+
+ScrollView
+{
+	margin-top: 0px;
+	margin-right: 4px;
+	margin-bottom: 4px;
+}
+
+#Canvas {
+    margin: auto;
+}
+
+#BottomPane 
+{
+	min-height: 118px;
+	border-top-width: 1px;
+}
+
+#BottomPane > ScrollView 
+{
+	margin-top: 0px;
+}
+
+#BottomPane > ScrollView > * > #unity-content-container
+{
+	flex-direction: row;
+	padding-left: 8px;
+	padding-right: 8px;
+}
+
+#BottomPane > ScrollView > #unity-content-viewport
+{
+	flex-direction: row;
+}
+
+#Editor
+{
+	position: Absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+}
+
+#Frames
+{
+	overflow: Scroll;
+}
+
+#Frames > #ItemsContainer
+{
+	flex-direction: row;
+}
+
+.frame
+{
+	padding: 4px;
+}
+
+.frame > Image
+{
+	width: 64px;
+	height: 64px;
+	min-height: 64px;
+	min-width: 64px;
+	background-color: #202020;
+}
+
+#FramesToolbar
+{
+	flex-direction: row;
+}
+
+#FramesToolbar > .spacer
+{
+	flex-grow: 1;
+}
+
+.layer
+{
+	margin-left: 4px;
+	margin-right: 4px;
+}
+
+.layer > #Preview
+{
+    width: 32px;
+    height: 32px;
+    border-width: 1px;
+    border-color: #666666;
+    margin-right: 8px;
+    background-color: #202020;
+}
+
+.layer
+{
+    flex-direction: row;
+    height: 40px;
+    align-items: Center;
+    border-color: #313131;
+    border-top-width: 1px;
+}
+
+.layer > .imageToggle
+{
+    margin-right: 8px;
+}
+
+.layer > Label
+{
+	margin-right: auto;
+	flex-grow: 1;
+}
+
+#LayersPane > ScrollView
+{
+	margin-top: 0px;	
+}
+
+#LayersToolbar
+{
+	flex-direction: row;
+}
+
+#LayersToolbar > .spacer
+{
+	flex-grow: 1;
+}
+
+#LayersToolbar > .imageButton
+{
+	width: 24px;
+	height: 24px;
+}
+
+#LeftPane
+{
+	flex-direction: row;	
+	min-width: 100px;	
+}
+
+#RightSplitter
+{
+	min-height: 100px;
+}
+
+#RightPane > ScrollView
+{
+	flex-grow: 1;
+}
+
+#RightPane
+{
+	min-width: 200px;
+}
+
+#Preview
+{
+	width: 32px;
+	height: 32px;
+	border-width: 1px;
+    border-color: #666666;
+    background-color: #202020;
+	margin: auto;
+}
+
+#PreviewPane
+{
+	height: 100px;
+	border-bottom-width: 1px;
+	border-color: #232323;
+	padding: 16px;
+}
+
+#Toolbar > .noz-imageToggle-checked
+{
+    background-color: #505050;
+    border-color: #505050;
+}
+
+#Toolbar > .noz-imageToggle 
+{
+    padding: 2px 4px 1px 4px;
+    width: 22px;
+    height: 19px;
+    margin-right: 2px;
+}
+
+#Toolbox
+{
+	height: 100%;
+	padding: 4px;
+	border-right-width: 1px;
+	min-width: 42px;
+	border-color: #232323;
+	overflow: visible;
+}
+
+#Toolbox>.imageButton
+{
+    min-width: 32px;
+	width: 32px;
+    min-height: 32px;
+	height: 32px;
+    padding: 4px;
+    margin-bottom: 4px;
+}
+
+#Toolbox > ColorField
+{
+    border-color: #BBBBBB;
+    border-width: 1;
+    margin-bottom: 4px;
+    margin-top: 8px;
+    padding: 1px;
+    width:28px;
+}
+
+#TopPane
+{
+	flex-direction: row;
+	flex-grow: 1;
+}
+
+#Workspace
+{	
+	width: 100%;
+	height: 100%;
+}
+
+#Workspace > * > #unity-content-viewport
+{
+	background-color: #313131;
+}

@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace NoZ.PixelEditor
+namespace NoZ.PA
 {
     internal static class ColorExtensions
     {

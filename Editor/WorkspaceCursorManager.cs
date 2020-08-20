@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine.UIElements;
 
-namespace NoZ.PixelEditor
+namespace NoZ.PA
 {
     /// <summary>
     /// Manages the mouse cursor for the workspace.  This element is overlayed

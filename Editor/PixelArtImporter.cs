@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEditor;
 
-namespace NoZ.PixelEditor
+namespace NoZ.PA
 {
     [UnityEditor.AssetImporters.ScriptedImporter(1, "pixelart")]
     public class PixelArtImporter : UnityEditor.AssetImporters.ScriptedImporter
@@ -15,10 +15,10 @@ namespace NoZ.PixelEditor
             // Generate a unique filename for the new artwork
             var filename = Path.Combine(
                 Application.dataPath,
-                AssetDatabase.GenerateUniqueAssetPath($"{PEUtils.GetSelectedPathOrFallback()}/New PixelArt.pixelart").Substring(7));
+                AssetDatabase.GenerateUniqueAssetPath($"{PAUtils.GetSelectedPathOrFallback()}/New PixelArt.pixelart").Substring(7));
 
             // Create an empty file
-            var file = new PEFile();
+            var file = new PAFile();
             file.width = 32;
             file.height = 32;
             file.AddFrame(file.AddAnimation("New Animation"));
@@ -32,7 +32,7 @@ namespace NoZ.PixelEditor
         public override void OnImportAsset(UnityEditor.AssetImporters.AssetImportContext ctx)
         {
             // Load the raw file.
-            var file = PEFile.Load(ctx.assetPath);
+            var file = PAFile.Load(ctx.assetPath);
 
             var texture = new Texture2D(64, 64, TextureFormat.RGBA32, false);
             texture.filterMode = FilterMode.Point;

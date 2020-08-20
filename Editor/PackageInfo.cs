@@ -1,8 +1,8 @@
 ﻿
-namespace NoZ.PixelEditor
+namespace NoZ.PA
 {
-    internal static class PixelEditorPackageInfo
+    internal static class PixelArtPackageInfo
     {
-        public static string assetPackagePath => "Packages/com.noz.pixeleditor";
+        public static string assetPackagePath => "Packages/com.NoZ.PA";
     }
 }
