@@ -5,7 +5,7 @@ using UnityEditor;
 
 namespace NoZ.PA
 {
-    [UnityEditor.AssetImporters.ScriptedImporter(1, "pixelart")]
+    [UnityEditor.AssetImporters.ScriptedImporterAttribute(1, "pixelart")]
     public class PixelArtImporter : UnityEditor.AssetImporters.ScriptedImporter
     {
 #if UNITY_EDITOR

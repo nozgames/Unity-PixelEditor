@@ -54,7 +54,7 @@ namespace NoZ.PA
             SetTitle("PixelArt Editor");
 
             // Add style sheet
-            rootVisualElement.AddStyleSheetPath("PEEditor");
+            rootVisualElement.AddStyleSheetPath("PAEditor");
             rootVisualElement.name = "Editor";
             rootVisualElement.focusable = true;
 

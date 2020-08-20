@@ -295,7 +295,7 @@ namespace NoZ.PA
 
             Add(_itemsContainer);
 
-            this.AddStyleSheetPath("PEReorderableList");
+            this.AddStyleSheetPath("PAReorderableList");
             AddToClassList("ReorderableList");
         }
 

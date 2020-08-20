@@ -222,6 +222,12 @@ ScrollView
     margin-bottom: 4px;
 }
 
+#Toolbox>.imageButton.selected
+{
+    background-color:#505050;
+	border-radius: 3px;
+}
+
 #Toolbox > ColorField
 {
     border-color: #BBBBBB;

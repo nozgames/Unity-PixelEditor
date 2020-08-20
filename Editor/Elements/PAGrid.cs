@@ -89,7 +89,11 @@ namespace NoZ.PA
                 to[axis0] = max0;
                 to[axis1] = coord1;
 
+#if UNITY_2020_2_OR_NEWER
                 Handles.DrawLine(from, to, 0.5f);
+#else
+                Handles.DrawLine(from, to);
+#endif
             }
         }
     }

@@ -1,7 +1,7 @@
 {
     "name": "Unity.NoZ.PixelArt.Editor",
     "references": [
-        "Unity.NoZ.PA"
+        "Unity.NoZ.PixelArt"
     ],
     "includePlatforms": [
         "Editor"
