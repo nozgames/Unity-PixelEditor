@@ -1,18 +1,17 @@
 ﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEngine.VFX;
 
 namespace NoZ.PA
 {
-    internal class PACanvas : VisualElement
+    internal class PAImageView : VisualElement
     {
         private Texture _background = null;
         private PAWorkspace _workspace = null;
 
         public bool ShowCheckerboard { get; set; } = true;
 
-        public PACanvas(PAWorkspace workspace)
+        public PAImageView(PAWorkspace workspace)
         {
             AddToClassList("canvas");
             
@@ -28,8 +27,8 @@ namespace NoZ.PA
         {
             var center = (Vector3)contentRect.center;
             var zoom = _workspace.Zoom;
-            var hwidth = _workspace.CanvasWidth * 0.5f * zoom;
-            var hheight = _workspace.CanvasHeight * 0.5f * zoom;            
+            var hwidth = _workspace.ImageWidth * 0.5f * zoom;
+            var hheight = _workspace.ImageHeight * 0.5f * zoom;            
             var uvmax = Vector2.zero;
             var uvmin = Vector2.zero;
 
@@ -42,8 +41,8 @@ namespace NoZ.PA
             {
                 var gridScale = 16.0f / zoom;
                 uvmax = new Vector2(
-                    (int)(_workspace.CanvasWidth / gridScale),
-                    (int)(_workspace.CanvasHeight / gridScale));
+                    (int)(_workspace.ImageWidth / gridScale),
+                    (int)(_workspace.ImageHeight / gridScale));
 
                 uvmax = new Vector2(
                     Mathf.NextPowerOfTwo((int)(uvmax.x - uvmax.x * 0.5f)),

@@ -116,7 +116,7 @@ namespace NoZ.PA
                 for (int itemIndex = 0; itemIndex < _layers.itemCount; itemIndex++)
                     ((PALayerItem)_layers.ItemAt(itemIndex)).Layer.order = _layers.itemCount - itemIndex - 1;
 
-                Workspace.RefreshCanvas();
+                Workspace.RefreshImage();
             };
             _layers.onItemSelected += (i) => Workspace.SelectedLayer = ((PALayerItem)_layers.ItemAt(i)).Layer;
             layersScrollView.contentContainer.Add(_layers);
@@ -147,7 +147,7 @@ namespace NoZ.PA
                 for (int itemIndex = 0; itemIndex < _frames.itemCount; itemIndex++)
                     ((PAFrame)_frames.ItemAt(itemIndex).userData).order = itemIndex;
 
-                Workspace.RefreshCanvas();
+                Workspace.RefreshImage();
             };
             _frames.onItemSelected += (i) => Workspace.SelectedFrame = ((PAFrameItem)_frames.ItemAt(i)).Frame;
 
@@ -183,24 +183,22 @@ namespace NoZ.PA
 
         private void OnFocus()
         {
-            //if (_editor != null)
-            //    _editor.Focus();
+            if (Workspace != null)
+                Workspace.SetFocusToCanvas();
         }
 
         private void Update()
         {
-#if false
             // Automatically close the current file if the asset is deleted
-            if (!IsEditing && _editor.visible)
+            if (_target == null && Workspace.File != null)
                 CloseFile();
-            
+           
             // Handle asset renaming
-            if(_target != null && CurrentFile != null && _target.name != CurrentFile.name)
+            if(_target != null && Workspace.File != null && _target.name != Workspace.File.name)
             {
-                CurrentFile.name = _target.name;
+                Workspace.File.name = _target.name;
                 SetTitle(_target.name);
             }
-#endif
         }
 
         /// <summary>
@@ -240,7 +238,7 @@ namespace NoZ.PA
 
         public void SaveFile()
         {
-            if (null == Workspace.File)
+            if (_target == null || null == Workspace.File)
                 return;
 
             Workspace.File.Save(AssetDatabase.GetAssetPath(_target));
@@ -322,7 +320,7 @@ namespace NoZ.PA
             _zoomSlider.lowValue = PAWorkspace.ZoomMin;
             _zoomSlider.highValue = PAWorkspace.ZoomMax;
             _zoomSlider.AddToClassList("zoom");
-            _zoomSlider.RegisterValueChangedCallback((e) => Workspace.SetZoom(e.newValue, Workspace.ViewportToWorkspace(Workspace.ViewportSize * 0.5f)));
+            _zoomSlider.RegisterValueChangedCallback((e) => Workspace.SetZoom(e.newValue, Workspace.ViewportToCanvas(Workspace.ViewportSize * 0.5f)));
             Toolbar.Add(_zoomSlider);
 
             var framesToggle = new PAImageToggle();
@@ -351,8 +349,8 @@ namespace NoZ.PA
             checkerboardToggle.value = true;
             checkerboardToggle.onValueChanged = (v) =>
             {
-                Workspace.Canvas.ShowCheckerboard = v;
-                Workspace.RefreshCanvas();
+                Workspace.ShowCheckerboard = v;
+                Workspace.RefreshImage();
             };
             checkerboardToggle.tooltip = "Toggle checkerboard";
             Toolbar.Add(checkerboardToggle);
@@ -454,7 +452,7 @@ namespace NoZ.PA
             RefreshLayersList();
             _layers.Select(Mathf.Min(order, Workspace.File.layers.Count - 1));
 
-            Workspace.RefreshCanvas();
+            Workspace.RefreshImage();
         }
 
         /// <summary>
@@ -500,7 +498,7 @@ namespace NoZ.PA
             Workspace.File.RemoveFrame(Workspace.SelectedFrame);
             RefreshFrameList();
             _frames.Select(Mathf.Min(order, Workspace.File.frames.Count - 1));
-            Workspace.RefreshCanvas();
+            Workspace.RefreshImage();
         }
 
 
@@ -525,7 +523,7 @@ namespace NoZ.PA
                     if (evt.ctrlKey)
                     {
                         Workspace.SelectedTool = Workspace.SelectionTool;
-                        Workspace.SelectionTool.Selection = new RectInt(0, 0, Workspace.CanvasWidth, Workspace.CanvasHeight);
+                        Workspace.SelectionTool.Selection = new RectInt(0, 0, Workspace.ImageWidth, Workspace.ImageHeight);
                         evt.StopImmediatePropagation();
                     }
                     break;

@@ -22,13 +22,13 @@ namespace NoZ.PA
 
         public override void OnDrawStart(PADrawEvent evt)
         {
-            _mouseStart = Workspace.WorkspaceToScrollView(evt.workspacePosition);
+            _mouseStart = Workspace.CanvasToViewport(evt.canvasPosition);
             _scrollStart = Workspace.ScrollOffset;
         }
 
         public override void OnDrawContinue(PADrawEvent evt)
         {
-            Workspace.ScrollOffset = _scrollStart - (Workspace.WorkspaceToScrollView(evt.workspacePosition) - _mouseStart);
+            Workspace.ScrollOffset = _scrollStart - (Workspace.CanvasToViewport(evt.canvasPosition) - _mouseStart);
         }
     }
 }

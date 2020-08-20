@@ -52,13 +52,13 @@ namespace NoZ.PA
 
         public override void OnDrawStart(PADrawEvent evt)
         {
-            _pivot = Workspace.ClampCanvasPosition(evt.canvasPosition);
+            _pivot = Workspace.ClampImagePosition(evt.imagePosition);
             MarkDirtyRepaint();
         }
 
         public override void OnDrawContinue(PADrawEvent evt)
         {
-            var drawPosition = Workspace.ClampCanvasPosition(evt.canvasPosition);
+            var drawPosition = Workspace.ClampImagePosition(evt.imagePosition);
             var min = Vector2Int.Min(_pivot, drawPosition);
             var max = Vector2Int.Max(_pivot, drawPosition);
             Selection = new RectInt(min, max - min + Vector2Int.one);
@@ -76,8 +76,8 @@ namespace NoZ.PA
             if (null == Selection)
                 return;
 
-            var min = Workspace.CanvasToWorkspace(Selection.Value.min);
-            var max = Workspace.CanvasToWorkspace(Selection.Value.max);
+            var min = Workspace.ImageToCanvas(Selection.Value.min);
+            var max = Workspace.ImageToCanvas(Selection.Value.max);
 
             Handles.color = Color.white;
             Handles.DrawSolidRectangleWithOutline(new Rect(min, max-min), IsDrawing ? FillColor : Color.clear, BorderColor);
@@ -115,7 +115,7 @@ namespace NoZ.PA
                             evt.ctrl ? Workspace.BackgroundColor : Workspace.ForegroundColor);
 
                         image.texture.Apply();
-                        Workspace.RefreshCanvas();
+                        Workspace.RefreshImage();
                     }
 
                     return false;
@@ -130,7 +130,7 @@ namespace NoZ.PA
                         {
                             image.texture.FillRect(CanvasToTexture(Selection.Value), Color.clear);
                             image.texture.Apply();
-                            Workspace.RefreshCanvas();
+                            Workspace.RefreshImage();
                             return false;
                         }
                     }

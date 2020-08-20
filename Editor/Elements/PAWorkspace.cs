@@ -12,13 +12,12 @@ namespace NoZ.PA
         private const float ZoomIncrementUp = 1.1f;
         private const float ZoomIncrementDown = 1.0f / ZoomIncrementUp;
 
-        private VisualElement _content;
+        private VisualElement _canvas;
         private PALayer _selectedLayer;
         private PAFrame _selectedFrame;
         private ScrollView _scrollView;
         private Color _foregroundColor;
         private Color _backgroundColor;
-        private float _zoom;
         private PAFile _file;
         private int _drawButton = -1;
         private Vector2 _drawStart;
@@ -26,7 +25,8 @@ namespace NoZ.PA
         private Vector2 _lastMousePosition;
         private PATool _previousTool;
         private PATool _selectedTool;
-        private WorkspaceCursorManager _workspaceCursor = null;
+        private PACursorManager _workspaceCursor;
+        private PAImageView _image;
 
         public event Action ZoomChangedEvent;
         public event Action ToolChangedEvent;
@@ -35,7 +35,6 @@ namespace NoZ.PA
         public event Action ForegroundColorChangedEvent;
         public event Action BackgroundColorChangedEvent;
 
-        public PACanvas Canvas { get; private set; }
         public PAGrid Grid { get; private set; }
         public PAEyeDropperTool EyeDropperTool { get; private set; }
         public PAPencilTool PencilTool { get; private set; }
@@ -62,7 +61,7 @@ namespace NoZ.PA
             _scrollView.contentViewport.contentRect.width,
             _scrollView.contentViewport.contentRect.height);
 
-        public Vector2 Size {
+        public Vector2 CanvasSize {
             get => new Vector2(
                 _scrollView.contentContainer.style.width.value.value,
                 _scrollView.contentContainer.style.height.value.value);
@@ -79,6 +78,14 @@ namespace NoZ.PA
         /// Returns true if a drawing operation is currently in progress
         /// </summary>
         public bool IsDrawing { get; private set; }
+
+        /// <summary>
+        /// Exeternal access to enabling/disabling the checkerboard background
+        /// </summary>
+        public bool ShowCheckerboard {
+            get => _image.ShowCheckerboard;
+            set => _image.ShowCheckerboard = value;
+        }
 
         /// <summary>
         /// Current selected tool
@@ -124,7 +131,7 @@ namespace NoZ.PA
 
                 SelectedLayerChangedEvent?.Invoke();
 
-                RefreshCanvas();
+                RefreshImage();
             }
         }
 
@@ -141,7 +148,7 @@ namespace NoZ.PA
 
                 SelectedFrameChangedEvent?.Invoke();
 
-                RefreshCanvas();
+                RefreshImage();
             }
         }
 
@@ -186,7 +193,7 @@ namespace NoZ.PA
         /// <summary>
         /// Current zoom level
         /// </summary>
-        public float Zoom => _zoom;
+        public float Zoom { get; private set; }
 
         /// <summary>
         /// Handle gui messages
@@ -200,23 +207,25 @@ namespace NoZ.PA
         /// <summary>
         /// Width of the canvas in pixels
         /// </summary>
-        public int CanvasWidth => File?.width ?? 0;
+        public int ImageWidth => File?.width ?? 0;
 
         /// <summary>
         /// Height of the canvas in pixels
         /// </summary>
-        public int CanvasHeight => File?.height ?? 0;
+        public int ImageHeight => File?.height ?? 0;
 
         /// <summary>
         /// Size of the canvas in pixels
         /// </summary>
-        public Vector2Int CanvasSize => new Vector2Int(CanvasWidth, CanvasHeight);
+        public Vector2Int ImageSize => new Vector2Int(ImageWidth, ImageHeight);
 
         /// <summary>
-        /// Returns the canvas rectangle in workspace coordinates
+        /// Returns the image rectangle within the canvas
         /// </summary>
-        public Rect CanvasRect =>
-            new Rect(_content.contentRect.min + _content.contentRect.size * 0.5f - (Vector2)CanvasSize * Zoom * 0.5f, (Vector2)CanvasSize * Zoom);
+        public Rect ImageRect =>
+            new Rect(
+                _canvas.contentRect.min + _canvas.contentRect.size * 0.5f - (Vector2)ImageSize * Zoom * 0.5f, 
+                (Vector2)ImageSize * Zoom);
 
         public PAWorkspace()
         {            
@@ -225,54 +234,53 @@ namespace NoZ.PA
             _scrollView.StretchToParentSize();
             Add(_scrollView);
 
-            _content = new VisualElement();
-            _content.StretchToParentSize();
-            _content.RegisterCallback<WheelEvent>(OnWheel);
-            _content.RegisterCallback<MouseDownEvent>(OnMouseDown);
-            _content.RegisterCallback<MouseUpEvent>(OnMouseUp);
-            _content.RegisterCallback<MouseMoveEvent>(OnMouseMove);
-            _content.RegisterCallback<MouseCaptureOutEvent>(OnMouseCaptureOut);
-            _content.RegisterCallback<MouseEnterEvent>(OnMouseEnter);
-            _content.RegisterCallback<MouseLeaveEvent>(OnMouseLeave);
-            _scrollView.Add(_content);
+            _canvas = new VisualElement();
+            _canvas.StretchToParentSize();
+            _canvas.RegisterCallback<WheelEvent>(OnWheel);
+            _canvas.RegisterCallback<MouseDownEvent>(OnMouseDown);
+            _canvas.RegisterCallback<MouseUpEvent>(OnMouseUp);
+            _canvas.RegisterCallback<MouseMoveEvent>(OnMouseMove);
+            _canvas.RegisterCallback<MouseCaptureOutEvent>(OnMouseCaptureOut);
+            _canvas.RegisterCallback<MouseEnterEvent>(OnMouseEnter);
+            _canvas.RegisterCallback<MouseLeaveEvent>(OnMouseLeave);
+            _scrollView.Add(_canvas);
 
             // Canvas
-            Canvas = new PACanvas(this) { name = "Canvas" };
-            Canvas.pickingMode = PickingMode.Ignore;
-            Canvas.MarkDirtyRepaint();
-            _content.Add(Canvas);
+            _image = new PAImageView(this) { name = "Canvas" };
+            _image.pickingMode = PickingMode.Ignore;
+            _canvas.Add(_image);
 
             // Pixel grid
             Grid = new PAGrid(this);
-            _content.Add(Grid);
+            _canvas.Add(Grid);
 
             // Create the tools
             PencilTool = new PAPencilTool(this);
-            _content.Add(PencilTool);
+            _canvas.Add(PencilTool);
 
             EraserTool = new PAEraserTool(this);
-            _content.Add(EraserTool);
+            _canvas.Add(EraserTool);
 
             EyeDropperTool = new PAEyeDropperTool(this);
-            _content.Add(EraserTool);
+            _canvas.Add(EraserTool);
 
             SelectionTool = new PASelectionTool(this);
-            _content.Add(SelectionTool);
+            _canvas.Add(SelectionTool);
 
             PanTool = new PAPanTool(this);
-            _content.Add(PanTool);
+            _canvas.Add(PanTool);
 
             // Create an element to manage the workspace cursor
-            _workspaceCursor = new WorkspaceCursorManager();
+            _workspaceCursor = new PACursorManager();
             _workspaceCursor.StretchToParentSize();
             _workspaceCursor.pickingMode = PickingMode.Ignore;
-            _content.Add(_workspaceCursor);
+            _canvas.Add(_workspaceCursor);
         }
 
         /// <summary>
-        /// Refresh the canvas renderer
+        /// Refresh the image and optionally and previews of the canvas as well
         /// </summary>
-        public void RefreshCanvas(bool includePreviews=true)
+        public void RefreshImage (bool includePreviews=true)
         {
             if(includePreviews)
             {
@@ -284,7 +292,7 @@ namespace NoZ.PA
                     layer.Item?.RefreshPreview(SelectedFrame);
             }
 
-            Canvas.MarkDirtyRepaint();
+            _image.MarkDirtyRepaint();
         }
 
         /// <summary>
@@ -301,9 +309,9 @@ namespace NoZ.PA
                 return;
 
             // Set the new workspace size
-            Size = Vector2.Max(
-                ViewportSize * 2.0f - (Vector2)CanvasSize * Zoom,
-                (Vector2)CanvasSize * Zoom + ViewportSize);
+            CanvasSize = Vector2.Max(
+                ViewportSize * 2.0f - (Vector2)ImageSize * Zoom,
+                (Vector2)ImageSize * Zoom + ViewportSize);
         }
 
         /// <summary>
@@ -322,49 +330,54 @@ namespace NoZ.PA
             }
 
             // Set the new zoom level
-            var zoom = _scrollView.contentViewport.contentRect.size * 0.9f / (Vector2)CanvasSize;
+            var zoom = _scrollView.contentViewport.contentRect.size * 0.9f / (Vector2)ImageSize;
             SetZoom(Mathf.Min(zoom.x, zoom.y), Vector2.zero);
 
             // Offset the scroll view to center the content
-            ScrollOffset = (Size - ViewportSize) * 0.5f;
+            ScrollOffset = (CanvasSize - ViewportSize) * 0.5f;
 
-            RefreshCanvas();
+            RefreshImage();
         }
 
         /// <summary>
-        /// Helper function to clamp the given canvas position to the cavnas
+        /// Helper function to clamp the given image position to the image bounds
         /// </summary>
-        public Vector2Int ClampCanvasPosition(Vector2Int canvasPosition) =>
-            new Vector2Int(Mathf.Clamp(canvasPosition.x, 0, CanvasWidth - 1), Mathf.Clamp(canvasPosition.y, 0, CanvasHeight - 1));
+        public Vector2Int ClampImagePosition(Vector2Int imagePosition) =>
+            new Vector2Int(
+                Mathf.Clamp(imagePosition.x, 0, ImageWidth - 1), 
+                Mathf.Clamp(imagePosition.y, 0, ImageHeight - 1));
 
         /// <summary>
-        /// Convert the given canvas position to a workspace position
+        /// Convert the given image position to a canvas position
         /// </summary>
-        public Vector2 CanvasToWorkspace(Vector2Int canvasPosition) =>
-            CanvasRect.min + (Vector2)canvasPosition * Zoom;
+        public Vector2 ImageToCanvas(Vector2Int imagePosition) =>
+            ImageRect.min + (Vector2)imagePosition * Zoom;
 
         /// <summary>
         /// Convert a coordinate from the workspace to the canvas.  Note that this 
         /// coordinate is not clamped to the canvas, use ClampCanvasPosition to do so.
         /// </summary>
-        public Vector2Int WorkspaceToCanvas(Vector2 workspacePosition)
+        public Vector2Int CanvasToImage(Vector2 canvasPosition)
         {
-            workspacePosition -= _content.contentRect.center;
-            workspacePosition /= new Vector2(CanvasWidth * Zoom, CanvasHeight * Zoom);
-            workspacePosition += new Vector2(0.5f, 0.5f);
-            workspacePosition *= new Vector2(CanvasWidth, CanvasHeight);
+            canvasPosition -= _canvas.contentRect.center;
+            canvasPosition /= new Vector2(ImageWidth * Zoom, ImageHeight * Zoom);
+            canvasPosition += new Vector2(0.5f, 0.5f);
+            canvasPosition *= new Vector2(ImageWidth, ImageHeight);
             return new Vector2Int(
-                (int)Mathf.Floor(workspacePosition.x),
-                (int)Mathf.Floor(workspacePosition.y));
+                (int)Mathf.Floor(canvasPosition.x),
+                (int)Mathf.Floor(canvasPosition.y));
         }
 
         /// <summary>
-        /// Convert a workspace coordinate into a coordinate within the scroll view
+        /// Convert a canvas position to a viewport position
         /// </summary>
-        public Vector2 WorkspaceToScrollView(Vector2 workspacePosition) =>
-            _content.ChangeCoordinatesTo(_scrollView.contentViewport, workspacePosition);
+        public Vector2 CanvasToViewport(Vector2 canvasPosition) =>
+            _canvas.ChangeCoordinatesTo(_scrollView.contentViewport, canvasPosition);
 
-        public Vector2 ViewportToWorkspace(Vector2 viewportPosition) => ScrollOffset + viewportPosition;
+        /// <summary>
+        /// Convert a viewport position to a canvas position
+        /// </summary>
+        public Vector2 ViewportToCanvas (Vector2 viewportPosition) => ScrollOffset + viewportPosition;
 
         public void SetCursor(MouseCursor cursor) => _workspaceCursor.Cursor = cursor;
 
@@ -372,33 +385,33 @@ namespace NoZ.PA
 
         public Vector2 SetZoom(float zoom, Vector2 referencePosition)
         {
-            if (zoom == _zoom)
+            if (zoom == Zoom)
                 return referencePosition;
 
-            var oldzoom = _zoom;
-            _zoom = zoom;
+            var oldzoom = Zoom;
+            Zoom = zoom;
 
             // Determine where on the canvas the mouse was previously
-            var oldWorkspaceSize = Size;
-            var oldCanvasSize = (Vector2)CanvasSize * oldzoom;
-            var referenceCanvasRatio = (referencePosition - (oldWorkspaceSize - oldCanvasSize) * 0.5f) / oldCanvasSize;
+            var oldWorkspaceSize = CanvasSize;
+            var oldImageSize = (Vector2)ImageSize * oldzoom;
+            var referenceImageSize = (referencePosition - (oldWorkspaceSize - oldImageSize) * 0.5f) / oldImageSize;
 
             // Resize the canvas.
-            Canvas.style.width = CanvasWidth * _zoom;
-            Canvas.style.height = CanvasHeight * _zoom;
+            _image.style.width = ImageWidth * Zoom;
+            _image.style.height = ImageHeight * Zoom;
 
             UpdateScrollView();
 
             // Position the cursor over the same pixel in the canvas that it was over before the zoom
-            var newWorkspaceSize = Size;
-            var viewPosition = _content.ChangeCoordinatesTo(_scrollView.contentViewport, referencePosition);
-            var newCanvasSize = (Vector2)CanvasSize * _zoom;
-            referencePosition = (newWorkspaceSize - newCanvasSize) * 0.5f + referenceCanvasRatio * newCanvasSize;
+            var newCanvasSize = CanvasSize;
+            var viewPosition = _canvas.ChangeCoordinatesTo(_scrollView.contentViewport, referencePosition);
+            var newImageSize = (Vector2)ImageSize * Zoom;
+            referencePosition = (newCanvasSize - newImageSize) * 0.5f + referenceImageSize * newImageSize;
             ScrollOffset = referencePosition - viewPosition;
 
             ZoomChangedEvent?.Invoke();
 
-            RefreshCanvas();
+            RefreshImage();
             SelectedTool.MarkDirtyRepaint();
             RefreshCursor();
 
@@ -424,8 +437,8 @@ namespace NoZ.PA
                 alt = evt.altKey,
                 shift = evt.shiftKey,
                 ctrl = evt.ctrlKey,
-                canvasPosition = WorkspaceToCanvas(evt.localMousePosition),
-                workspacePosition = evt.localMousePosition
+                imagePosition = CanvasToImage(evt.localMousePosition),
+                canvasPosition = evt.localMousePosition
             });
 
             // Ignore all mouse buttons when drawing
@@ -433,7 +446,7 @@ namespace NoZ.PA
                 return;
 
             // Alwasys capture the mouse between mouse down/up
-            MouseCaptureController.CaptureMouse(_content);
+            MouseCaptureController.CaptureMouse(_canvas);
 
             _drawButton = evt.button;
             _drawStart = evt.localMousePosition;
@@ -449,8 +462,8 @@ namespace NoZ.PA
                     alt = evt.altKey,
                     shift = evt.shiftKey,
                     ctrl = evt.ctrlKey,
-                    canvasPosition = WorkspaceToCanvas(_drawStart),
-                    workspacePosition = _drawStart
+                    imagePosition = CanvasToImage(_drawStart),
+                    canvasPosition = _drawStart
                 });
             }
         }
@@ -476,7 +489,7 @@ namespace NoZ.PA
             }
 
             // Release the mouse capture
-            if (MouseCaptureController.HasMouseCapture(_content))
+            if (MouseCaptureController.HasMouseCapture(_canvas))
                 MouseCaptureController.ReleaseMouse();
         }
 
@@ -489,7 +502,7 @@ namespace NoZ.PA
             SelectedTool?.OnMouseMove(PAMouseEvent.Create(this, evt));
 
             _lastMousePosition = evt.localMousePosition;
-            var canvasPosition = WorkspaceToCanvas(evt.localMousePosition);
+            var canvasPosition = CanvasToImage(evt.localMousePosition);
 
             if (IsDrawing)
             {
@@ -524,8 +537,8 @@ namespace NoZ.PA
                     alt = false,
                     ctrl = false,
                     shift = false,
-                    canvasPosition = WorkspaceToCanvas(_drawLast),
-                    workspacePosition = _drawLast,
+                    imagePosition = CanvasToImage(_drawLast),
+                    canvasPosition = _drawLast,
                     start = _drawStart
                 }, true);
                 IsDrawing = false;
@@ -568,11 +581,13 @@ namespace NoZ.PA
             if (SelectedTool == null)
                 return;
 
-            if (MouseCaptureController.IsMouseCaptured() && !MouseCaptureController.HasMouseCapture(_content))
+            if (MouseCaptureController.IsMouseCaptured() && !MouseCaptureController.HasMouseCapture(_canvas))
                 return;
 
-            SelectedTool.SetCursor(WorkspaceToCanvas(_lastMousePosition));
+            SelectedTool.SetCursor(CanvasToImage(_lastMousePosition));
             _workspaceCursor.Refresh();
         }
+
+        public void SetFocusToCanvas() => _canvas.Focus();
     }
 }

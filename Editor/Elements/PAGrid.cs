@@ -40,11 +40,11 @@ namespace NoZ.PA
 
         protected override void ImmediateRepaint()
         {
-            if (_workspace.CanvasHeight == 0 || _workspace.CanvasWidth == 0)
+            if (_workspace.ImageHeight == 0 || _workspace.ImageWidth == 0)
                 return;
 
             var alpha = Mathf.Clamp((_workspace.Zoom - ZoomAlphaZero) / (ZoomAlphaOne - ZoomAlphaZero), AlphaMin, AlphaMax);
-            var size = new Vector2(_workspace.CanvasWidth  * _workspace.Zoom, _workspace.CanvasHeight * _workspace.Zoom);
+            var size = new Vector2(_workspace.ImageWidth  * _workspace.Zoom, _workspace.ImageHeight * _workspace.Zoom);
             var center = contentRect.center;
 
             GUI.BeginClip(contentRect);
@@ -55,8 +55,8 @@ namespace NoZ.PA
                 if (alpha > 0.0f)
                 {
                     Handles.color = new Color(_color.r, _color.g, _color.b, alpha);
-                    DrawLines(center, size, 0, 1, _workspace.CanvasHeight, 1);
-                    DrawLines(center, size, 1, 1, _workspace.CanvasWidth, 1);
+                    DrawLines(center, size, 0, 1, _workspace.ImageHeight, 1);
+                    DrawLines(center, size, 1, 1, _workspace.ImageWidth, 1);
                 }
             }
 
@@ -64,8 +64,8 @@ namespace NoZ.PA
             if (ShowBorder || ShowPixels)
             {
                 Handles.color = _color;
-                DrawLines(center, size, 0, 0, _workspace.CanvasHeight + 1, _workspace.CanvasHeight);
-                DrawLines(center, size, 1, 0, _workspace.CanvasWidth + 1, _workspace.CanvasWidth);
+                DrawLines(center, size, 0, 0, _workspace.ImageHeight + 1, _workspace.ImageHeight);
+                DrawLines(center, size, 1, 0, _workspace.ImageWidth + 1, _workspace.ImageWidth);
             }
 
             GUI.EndClip();

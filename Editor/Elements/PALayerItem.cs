@@ -36,7 +36,7 @@ namespace NoZ.PA
         private void OnVisibilityChanged(bool value)
         {
             Layer.visible = value;
-            _workspace.RefreshCanvas();
+            _workspace.RefreshImage();
         }
 
         public void RefreshPreview (PAFrame frame)

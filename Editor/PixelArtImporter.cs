@@ -3,10 +3,16 @@ using System.Linq;
 using UnityEngine;
 using UnityEditor;
 
+#if UNITY_2020_2_OR_NEWER
+using UnityEditor.AssetImporters;
+#else
+using UnityEditor.Experimental.AssetImporters;
+#endif
+
 namespace NoZ.PA
 {
-    [UnityEditor.AssetImporters.ScriptedImporterAttribute(1, "pixelart")]
-    public class PixelArtImporter : UnityEditor.AssetImporters.ScriptedImporter
+    [ScriptedImporterAttribute(1, "pixelart")]
+    public class PixelArtImporter : ScriptedImporter
     {
 #if UNITY_EDITOR
         [MenuItem("Assets/Create/PixelArt")]
@@ -29,7 +35,7 @@ namespace NoZ.PA
         }
 #endif
 
-        public override void OnImportAsset(UnityEditor.AssetImporters.AssetImportContext ctx)
+        public override void OnImportAsset(AssetImportContext ctx)
         {
             // Load the raw file.
             var file = PAFile.Load(ctx.assetPath);

@@ -36,26 +36,26 @@ namespace NoZ.PA
 
             _target.texture.Apply();
 
-            Workspace.RefreshCanvas(false);
+            Workspace.RefreshImage(false);
         }
 
         public override void OnDrawStart(PADrawEvent evt)
         {
             if (!evt.shift || _drawPosition == null)
-                _drawPosition = CanvasToTexture(evt.canvasPosition);
+                _drawPosition = CanvasToTexture(evt.imagePosition);
 
             _drawColor = GetDrawColor(evt.button);
             _target = Workspace.File.AddImage(Workspace.SelectedFrame, Workspace.SelectedLayer);
-            DrawTo(evt.canvasPosition);
+            DrawTo(evt.imagePosition);
         }
 
         public override void OnDrawContinue(PADrawEvent evt) =>
-            DrawTo(evt.canvasPosition);
+            DrawTo(evt.imagePosition);
 
         public override void OnDrawEnd(PADrawEvent evt, bool cancelled)
         {
             _target = null;
-            Workspace.RefreshCanvas();
+            Workspace.RefreshImage();
         }
     }
 }

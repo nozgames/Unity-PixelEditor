@@ -27,10 +27,10 @@ namespace NoZ.PA
         public bool IsDrawing => Workspace.IsDrawing;
 
         public Vector2Int CanvasToTexture(Vector2Int v) =>
-            new Vector2Int(v.x, Workspace.CanvasHeight - 1 - v.y);
+            new Vector2Int(v.x, Workspace.ImageHeight - 1 - v.y);
 
         public RectInt CanvasToTexture(RectInt r) =>
-            new RectInt(r.xMin, Workspace.CanvasHeight - r.yMin - r.height, r.width, r.height);
+            new RectInt(r.xMin, Workspace.ImageHeight - r.yMin - r.height, r.width, r.height);
 
         /// <summary>
         /// Load the icon for the tool

@@ -14,8 +14,8 @@ namespace NoZ.PA
         public static PADrawEvent Create<T>(PAWorkspace workspace, MouseEventBase<T> evt, MouseButton button, Vector2 start) where T : MouseEventBase<T>, new() => new PADrawEvent 
         {
             button = (MouseButton)button,
-            workspacePosition = evt.localMousePosition,
-            canvasPosition = workspace.WorkspaceToCanvas(evt.localMousePosition),
+            canvasPosition = evt.localMousePosition,
+            imagePosition = workspace.CanvasToImage(evt.localMousePosition),
             start = start,
             shift = evt.shiftKey,
             alt = evt.altKey,

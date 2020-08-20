@@ -10,7 +10,7 @@ namespace NoZ.PA
     /// immediate mode was used to work around some bugs with swapping cursors at
     /// runtime within an element.
     /// </summary>
-    class WorkspaceCursorManager : ImmediateModeElement
+    class PACursorManager : ImmediateModeElement
     {
         /// <summary>
         /// Current cursor

@@ -23,10 +23,10 @@ namespace NoZ.PA
             Workspace.SetCursor(_cursor, _cursorHotspot);
 
         public override void OnDrawStart(PADrawEvent evt) =>
-            SampleColor(evt.button, evt.canvasPosition);
+            SampleColor(evt.button, evt.imagePosition);
 
         public override void OnDrawContinue(PADrawEvent evt) =>
-            SampleColor(evt.button, evt.canvasPosition);
+            SampleColor(evt.button, evt.imagePosition);
 
         /// <summary>
         /// Sample a color from the current canvas
@@ -35,8 +35,8 @@ namespace NoZ.PA
         {
             if (canvasPosition.x < 0 ||
                 canvasPosition.y < 0 ||
-                canvasPosition.x >= Workspace.CanvasWidth ||
-                canvasPosition.y >= Workspace.CanvasHeight)
+                canvasPosition.x >= Workspace.ImageWidth ||
+                canvasPosition.y >= Workspace.ImageHeight)
                 return;
 
             if (button == MouseButton.MiddleMouse)
@@ -49,7 +49,7 @@ namespace NoZ.PA
             // TODO: option for sample all layers or sample current layer in toolbar
             var color = target.texture.GetPixel(
                 canvasPosition.x,
-                Workspace.CanvasHeight - 1 - canvasPosition.y);
+                Workspace.ImageHeight - 1 - canvasPosition.y);
             if (color == Color.clear)
                 return;
 
