@@ -1,12 +1,7 @@
 {
-    "name": "Unity.NoZ.PA.Editor",
-    "rootNamespace": "",
-    "references": [
-        "Unity.NoZ.PA"
-    ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "name": "Unity.NoZ.PixelArt",
+    "references": [],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
