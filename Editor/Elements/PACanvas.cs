@@ -76,6 +76,10 @@ namespace NoZ.PA
                 ((ScrollView)parent).contentContainer.style.minHeight = (int)value.y;
                 style.minWidth = (int)value.x;
                 style.minHeight = (int)value.y;
+                ((ScrollView)parent).contentContainer.style.width = (int)value.x;
+                ((ScrollView)parent).contentContainer.style.height = (int)value.y;
+                style.width = (int)value.x;
+                style.height = (int)value.y;
             }
         }
 
@@ -506,8 +510,8 @@ namespace NoZ.PA
             var referenceImageSize = (referencePosition - (oldWorkspaceSize - oldImageSize) * 0.5f) / oldImageSize;
 
             // Resize the image view.
-            _image.style.width = ImageWidth * Zoom;
-            _image.style.height = ImageHeight * Zoom;
+            _image.style.width = (int)(ImageWidth * Zoom);
+            _image.style.height = (int)(ImageHeight * Zoom);
 
             UpdateSize();
 

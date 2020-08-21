@@ -1,7 +1,6 @@
-
 #CenterPane
 {
-	flex-grow: 1;
+	width: 100%;
 }
 
 .imageButton
@@ -34,9 +33,10 @@ ScrollView
 
 #BottomPane 
 {
-	min-height: 118px;
 	border-top-width: 1px;
 	border-color: #232323;
+	flex-shrink: 0;
+	height: 118px;
 }
 
 #BottomPane > ScrollView 
@@ -103,6 +103,7 @@ ScrollView
 {
 	margin-left: 4px;
 	margin-right: 4px;
+	padding-right: 8px;
 }
 
 .layer > #Preview
@@ -166,9 +167,8 @@ ScrollView
 {
 	border-left-width: 1px;
 	border-color: #232323;
-	min-width: 150px;
+	flex-shrink: 0;
 }
-
 
 #Preview
 {
@@ -191,6 +191,7 @@ ScrollView
 #ZoomSlider
 {
 	min-width: 80px;
+	width: 80px;
 	margin-right: 16px;
 }
 
@@ -211,11 +212,12 @@ ScrollView
 #Toolbox
 {
 	height: 100%;
+	width: 42px;
 	padding: 4px;
 	border-right-width: 1px;
-	min-width: 42px;
 	border-color: #232323;
 	overflow: visible;
+	flex-shrink: 0;
 }
 
 #Toolbox>.imageButton
@@ -257,8 +259,15 @@ ScrollView
 
 #Workspace
 {
-	flex-grow: 1;
+	margin-top: 21px;
 	flex-direction: row;
+	flex-shrink: 0;
+	flex-grow: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	top: 0;
+	position: Absolute;
 }
 
 #Workspace > * > #unity-content-viewport

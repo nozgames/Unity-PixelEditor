@@ -61,7 +61,6 @@ namespace NoZ.PA
             centerPane.Add(bottomPane);
 
             Canvas = new PACanvas(this) { name = "Canvas" };
-            //Canvas.StretchToParentSize();
             Canvas.ZoomChangedEvent += () => _zoomSlider?.SetValueWithoutNotify(Canvas.Zoom);
             Canvas.ToolChangedEvent += OnToolChanged;
             Canvas.ForegroundColorChangedEvent += () => _foregroundColor.value = Canvas.ForegroundColor;
