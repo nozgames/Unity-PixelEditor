@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace NoZ.PA
+﻿namespace NoZ.PA
 {
     internal class PAAnimation
     {
@@ -13,5 +11,10 @@ namespace NoZ.PA
         /// Name of the animation
         /// </summary>
         public string name;
+
+        /// <summary>
+        /// Number of frames per second
+        /// </summary>
+        public int fps = 10;
     }
 }

@@ -1,3 +1,9 @@
+#AnimationDropDown
+{
+	min-width: 200px;
+	margin-bottom:1px;
+}
+
 #CenterPane
 {
 	width: 100%;
@@ -92,6 +98,19 @@ ScrollView
 #FramesToolbar
 {
 	flex-direction: row;
+	border-bottom-width: 1px;
+	border-color: #232323;
+}
+
+#FramesToolbar>.imageButton
+{
+    margin-top: 1px;
+	margin-bottom: 1px;
+}
+
+#FramesToolbar>.imageButton.selected
+{
+    background-color:#505050;
 }
 
 #FramesToolbar > .spacer
@@ -279,3 +298,4 @@ ScrollView
 {
 	flex-direction: row;
 }
+

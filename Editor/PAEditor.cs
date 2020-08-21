@@ -50,6 +50,7 @@ namespace NoZ.PA
             rootVisualElement.AddStyleSheetPath("PAEditor");
             rootVisualElement.name = "Editor";
             rootVisualElement.focusable = true;
+            //rootVisualElement.RegisterCallback<FocusInEvent>((e) => Workspace?.schedule.Execute(Workspace.Canvas.Focus));
 
             rootVisualElement.Add(CreateToolbar());
 

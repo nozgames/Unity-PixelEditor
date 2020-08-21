@@ -17,6 +17,11 @@ namespace NoZ.PA
         private VisualElement _layersPane = null;
         private PAReorderableList _layers = null;
         private PAReorderableList _frames = null;
+        private ToolbarMenu _animations = null;
+        private VisualElement _animationOptionsButton = null;
+        private VisualElement _playButton = null;
+        private PAFrame _playFrame = null;
+        private IVisualElementScheduledItem _playingScheduledItem;
 
         public PixelArt Target { get; private set; }
 
@@ -25,6 +30,8 @@ namespace NoZ.PA
 
         public VisualElement Toolbar { get; private set; }
         public VisualElement Toolbox { get; private set; }
+
+        public bool IsPlaying { get; private set; }
 
         public PAUndo Undo { get; private set; }
 
@@ -73,7 +80,14 @@ namespace NoZ.PA
             Canvas.ForegroundColorChangedEvent += () => _foregroundColor.SetValueWithoutNotify(Canvas.ForegroundColor);
             Canvas.BackgroundColorChangedEvent += () => _backgroundColor.SetValueWithoutNotify(Canvas.BackgroundColor);
             Canvas.SelectedLayerChangedEvent += () => _layers.Select(Canvas.SelectedLayer?.Item);
-            Canvas.SelectedFrameChangedEvent += () => _frames.Select(Canvas.SelectedFrame?.Item); 
+            Canvas.SelectedFrameChangedEvent += () => _frames.Select(Canvas.SelectedFrame?.Item);
+            Canvas.SelectedAnimationChangedEvent += () =>
+            {
+                RefreshAnimationList();
+                RefreshFrameList();
+                Canvas.RefreshImage();
+                Canvas.Focus();
+            };
             _scrollView.Add(Canvas);
 
             // Right pane
@@ -116,8 +130,19 @@ namespace NoZ.PA
             toolbarSpacer = new VisualElement();
             toolbarSpacer.AddToClassList("spacer");
 
+            _animations = new ToolbarMenu() { name = "AnimationDropDown" };            
+
             var framesToolbar = new VisualElement();
             framesToolbar.name = "FramesToolbar";
+            framesToolbar.Add(_animations);
+
+            _animationOptionsButton = PAUtils.CreateImageButton("!d_Settings", "Animation Options", OpenAnimationOptions);
+            framesToolbar.Add(_animationOptionsButton);
+
+
+            _playButton = PAUtils.CreateImageButton("!d_PlayButton", "Play", OnPlay);
+            framesToolbar.Add(_playButton);
+
             framesToolbar.Add(toolbarSpacer);
             framesToolbar.Add(PAUtils.CreateImageButton("LayerAdd.psd", "Create a new frame", AddFrame));
             framesToolbar.Add(PAUtils.CreateImageButton("Duplicate.psd", "Duplicate selected frame", DuplicatFrame));
@@ -168,6 +193,7 @@ namespace NoZ.PA
 
             RefreshFrameList();
             RefreshLayersList();
+            RefreshAnimationList();
 
             Canvas.ZoomToFit();
 
@@ -176,7 +202,7 @@ namespace NoZ.PA
 
         public void SaveFile()
         {
-            if (Target == null || null == Canvas.File)
+            if (Target == null || Canvas.File == null)
                 return;
 
             Canvas.File.Save(AssetDatabase.GetAssetPath(Target));
@@ -268,7 +294,7 @@ namespace NoZ.PA
             if (null == Canvas.File)
                 return;
 
-            foreach (var frame in Canvas.File.frames.OrderBy(f => f.order))
+            foreach (var frame in Canvas.File.frames.Where(f => f.animation == Canvas.SelectedAnimation).OrderBy(f => f.order))
                 _frames.AddItem(new PAFrameItem(frame));
         }
 
@@ -304,7 +330,7 @@ namespace NoZ.PA
         private void AddFrame()
         {
             Undo.Record("Add Frame");
-            Canvas.File.AddFrame(Canvas.CurrentAnimation);
+            Canvas.File.AddFrame(Canvas.SelectedAnimation);
             RefreshFrameList();
         }
 
@@ -318,7 +344,7 @@ namespace NoZ.PA
 
             Undo.Record("Duplicate Frame");
 
-            var frame = Canvas.File.InsertFrame(Canvas.CurrentAnimation, Canvas.SelectedFrame.order + 1);
+            var frame = Canvas.File.InsertFrame(Canvas.SelectedAnimation, Canvas.SelectedFrame.order + 1);
             Canvas.File.images.AddRange(
                 Canvas.File.images.Where(i => i.frame == Canvas.SelectedFrame).Select(i => new PAImage
                 {
@@ -347,6 +373,46 @@ namespace NoZ.PA
             RefreshFrameList();
             _frames.Select(Mathf.Min(order, Canvas.File.frames.Count - 1));
             Canvas.RefreshImage();            
+        }
+
+        public void RefreshAnimationList()
+        {
+            if (null == _animations)
+                return;
+
+            _animations.menu.MenuItems().Clear();
+
+            if (null == Canvas.File)
+                return;
+
+            foreach (var animation in Canvas.File.animations)
+                _animations.menu.AppendAction(animation.name,
+                    (a) => Canvas.SelectedAnimation = animation, 
+                    (m) => animation == Canvas.SelectedAnimation ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
+
+            _animations.menu.AppendSeparator();
+            _animations.menu.AppendAction("Create New Animation...", (a) => AddAnimation(), DropdownMenuAction.Status.Normal);
+            _animations.text = Canvas.SelectedAnimation?.name;
+        }
+
+        /// <summary>
+        /// Add a new animation
+        /// </summary>
+        private void AddAnimation()
+        {
+            Undo.Record("New Animation");
+            Canvas.SelectedAnimation = Canvas.File.AddAnimation("New Animation");
+            RefreshAnimationList();
+        }
+
+        /// <summary>
+        /// Open the animation options for the selected animation
+        /// </summary>
+        private void OpenAnimationOptions()
+        {
+            UnityEditor.PopupWindow.Show(
+                _animationOptionsButton.worldBound, 
+                new PAAnimationOptions(this, Canvas.SelectedAnimation));
         }
 
         /// <summary>
@@ -424,6 +490,37 @@ namespace NoZ.PA
 
             // Add the toolbar to the main toolbar
             Editor.Toolbar.Add(Toolbar);
+        }
+
+        private void PlayNextFrame()
+        {
+            if (!IsPlaying)
+                return;
+            
+            Canvas.SelectedFrame = Canvas.File.FindNextFrame(Canvas.SelectedFrame);
+            _playingScheduledItem = this.schedule.Execute(PlayNextFrame);
+            _playingScheduledItem.ExecuteLater(1000 / Math.Max(1,Canvas.SelectedAnimation.fps));
+        }
+
+        private void OnPlay()
+        {
+            IsPlaying = !IsPlaying;
+
+            if (IsPlaying)
+                _playButton.AddToClassList("selected");
+            else
+                _playButton.RemoveFromClassList("selected");
+
+            if(IsPlaying)
+            {
+                _playFrame = Canvas.SelectedFrame;
+                PlayNextFrame();
+            }
+            else if (null != _playingScheduledItem)
+            {
+                _playingScheduledItem.Pause();
+                Canvas.SelectedFrame = _playFrame;
+            }
         }
     }
 }

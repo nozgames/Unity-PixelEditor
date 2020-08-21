@@ -12,6 +12,7 @@ namespace NoZ.PA
         private const float ZoomIncrementUp = 1.1f;
         private const float ZoomIncrementDown = 1.0f / ZoomIncrementUp;
 
+        private PAAnimation _selectedAnimation;
         private PALayer _selectedLayer;
         private PAFrame _selectedFrame;
         private Color _foregroundColor;
@@ -28,6 +29,7 @@ namespace NoZ.PA
 
         public event Action ZoomChangedEvent;
         public event Action ToolChangedEvent;
+        public event Action SelectedAnimationChangedEvent;
         public event Action SelectedLayerChangedEvent;
         public event Action SelectedFrameChangedEvent;
         public event Action ForegroundColorChangedEvent;
@@ -52,6 +54,7 @@ namespace NoZ.PA
 
                 if(_file != null)
                 {
+                    SelectedAnimation = _file.animations[0];
                     SelectedFrame = _file.frames[0];
                     SelectedLayer = _file.layers[0];
                 }
@@ -88,7 +91,20 @@ namespace NoZ.PA
         /// </summary>
         public bool IsDrawing { get; private set; }
 
-        public PAAnimation CurrentAnimation => SelectedFrame?.animation;
+        /// <summary>
+        /// Set/Get teh selected animation
+        /// </summary>
+        public PAAnimation SelectedAnimation {
+            get => _selectedAnimation;
+            set {
+                if (value == _selectedAnimation)
+                    return;
+
+                _selectedAnimation = value;
+
+                SelectedAnimationChangedEvent?.Invoke();
+            }
+        } 
 
         /// <summary>
         /// Exeternal access to enabling/disabling the checkerboard background

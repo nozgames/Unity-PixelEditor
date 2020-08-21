@@ -7,7 +7,7 @@ namespace NoZ.PA
 {
     internal class PAFile
     {
-        public static int CurrentVersion = 1;
+        public static int CurrentVersion = 3;
 
         public int version = CurrentVersion;
 
@@ -50,6 +50,18 @@ namespace NoZ.PA
         /// </summary>
         public PAFrame FindFrame(string id) =>
             frames.Where(f => f.id == id).FirstOrDefault();
+
+        /// <summary>
+        /// Return the frame that is next in the frame sequence for the animation
+        /// </summary>
+        public PAFrame FindNextFrame(PAFrame prevFrame, bool loop = true)
+        {
+            var frame = frames.Where(f => f.animation == prevFrame.animation && f.order == prevFrame.order + 1).FirstOrDefault();
+            if (null == frame && loop)
+                frame = frames.Where(f => f.animation == prevFrame.animation).OrderBy(f => f.order).FirstOrDefault();
+
+            return frame;
+        }            
 
         /// <summary>
         /// Find the layer that matches the given identifier
@@ -98,7 +110,7 @@ namespace NoZ.PA
             // ensure name is unique
             var prefix = name;
             for(var index=1; null != FindAnimationByName(name); index++)
-                name = $"{prefix} 1";                    
+                name = $"{prefix} {index}";                    
 
             var animation = new PAAnimation
             {
@@ -106,6 +118,10 @@ namespace NoZ.PA
                 name = name
             };
             animations.Add(animation);
+
+            // Add a single frame for the animation
+            AddFrame(animation);
+
             return animation;
         }
 
@@ -237,7 +253,7 @@ namespace NoZ.PA
 
             using (var reader = new BinaryReader(File.OpenRead(filename)))
             {
-                var version = reader.ReadInt32();
+                file.version = reader.ReadInt32();
                 file.width = reader.ReadInt32();
                 file.height = reader.ReadInt32();
 
@@ -263,6 +279,12 @@ namespace NoZ.PA
                     var animation = new PAAnimation();
                     animation.id = reader.ReadString();
                     animation.name = reader.ReadString();
+
+                    if (file.version < 3)
+                        animation.fps = 10;
+                    else
+                        animation.fps = reader.ReadInt32();
+
                     file.animations.Add(animation);
                 }
 
@@ -302,6 +324,8 @@ namespace NoZ.PA
 
         internal void Save(string filename)
         {
+            version = CurrentVersion;
+
             using(var writer = new BinaryWriter(File.Create(filename)))
             {
                 writer.Write(version);
@@ -325,6 +349,7 @@ namespace NoZ.PA
                 {
                     writer.Write(animation.id);
                     writer.Write(animation.name);
+                    writer.Write(animation.fps);
                 }
 
                 // Write frames
