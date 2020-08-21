@@ -4,14 +4,14 @@ namespace NoZ.PA
 {
     internal class PALayerItem : VisualElement
     {
-        private PAWorkspace _workspace;
+        private PACanvas _canvas;
         private Image _preview = null;
 
         public PALayer Layer { get; private set; }
 
-        public PALayerItem(PAWorkspace workspace, PALayer layer)
+        public PALayerItem(PACanvas canvas, PALayer layer)
         {
-            _workspace = workspace;
+            _canvas = canvas;
             Layer = layer;
             Layer.Item = this;
 
@@ -36,7 +36,7 @@ namespace NoZ.PA
         private void OnVisibilityChanged(bool value)
         {
             Layer.visible = value;
-            _workspace.RefreshImage();
+            _canvas.RefreshImage();
         }
 
         public void RefreshPreview (PAFrame frame)

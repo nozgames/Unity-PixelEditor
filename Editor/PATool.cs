@@ -10,13 +10,13 @@ namespace NoZ.PA
     /// </summary>
     internal class PATool : ImmediateModeElement
     {
-        public PAWorkspace Workspace { get; private set; }
+        public PACanvas Canvas { get; private set; }
 
         public float DrawThreshold = 0.0f;
 
-        public PATool(PAWorkspace workspace)
+        public PATool(PACanvas canvas)
         {
-            Workspace = workspace;
+            Canvas = canvas;
 
             visible = false;
             pickingMode = PickingMode.Ignore;
@@ -24,13 +24,13 @@ namespace NoZ.PA
             this.StretchToParentSize();
         }
 
-        public bool IsDrawing => Workspace.IsDrawing;
+        public bool IsDrawing => Canvas.IsDrawing;
 
         public Vector2Int CanvasToTexture(Vector2Int v) =>
-            new Vector2Int(v.x, Workspace.ImageHeight - 1 - v.y);
+            new Vector2Int(v.x, Canvas.ImageHeight - 1 - v.y);
 
         public RectInt CanvasToTexture(RectInt r) =>
-            new RectInt(r.xMin, Workspace.ImageHeight - r.yMin - r.height, r.width, r.height);
+            new RectInt(r.xMin, Canvas.ImageHeight - r.yMin - r.height, r.width, r.height);
 
         /// <summary>
         /// Load the icon for the tool
@@ -59,7 +59,7 @@ namespace NoZ.PA
         /// </summary>
         public virtual void SetCursor (Vector2Int canvasPosition)
         {
-            Workspace.SetCursor(MouseCursor.Arrow);
+            Canvas.SetCursor(MouseCursor.Arrow);
         }
 
         /// <summary>

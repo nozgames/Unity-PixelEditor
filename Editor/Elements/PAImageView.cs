@@ -7,17 +7,17 @@ namespace NoZ.PA
     internal class PAImageView : VisualElement
     {
         private Texture _background = null;
-        private PAWorkspace _workspace = null;
+        private PACanvas _canvas = null;
 
         public bool ShowCheckerboard { get; set; } = true;
 
-        public PAImageView(PAWorkspace workspace)
+        public PAImageView(PACanvas canvas)
         {
             AddToClassList("canvas");
             
             pickingMode = PickingMode.Ignore;
 
-            _workspace = workspace;
+            _canvas = canvas;
             _background = PAUtils.LoadImage("Grid.psd");
 
             generateVisualContent += OnGenerateVisualContent;
@@ -26,9 +26,9 @@ namespace NoZ.PA
         private void OnGenerateVisualContent(MeshGenerationContext context)
         {
             var center = (Vector3)contentRect.center;
-            var zoom = _workspace.Zoom;
-            var hwidth = _workspace.ImageWidth * 0.5f * zoom;
-            var hheight = _workspace.ImageHeight * 0.5f * zoom;            
+            var zoom = _canvas.Zoom;
+            var hwidth = _canvas.ImageWidth * 0.5f * zoom;
+            var hheight = _canvas.ImageHeight * 0.5f * zoom;            
             var uvmax = Vector2.zero;
             var uvmin = Vector2.zero;
 
@@ -41,8 +41,8 @@ namespace NoZ.PA
             {
                 var gridScale = 16.0f / zoom;
                 uvmax = new Vector2(
-                    (int)(_workspace.ImageWidth / gridScale),
-                    (int)(_workspace.ImageHeight / gridScale));
+                    (int)(_canvas.ImageWidth / gridScale),
+                    (int)(_canvas.ImageHeight / gridScale));
 
                 uvmax = new Vector2(
                     Mathf.NextPowerOfTwo((int)(uvmax.x - uvmax.x * 0.5f)),
@@ -65,11 +65,11 @@ namespace NoZ.PA
             });
             mesh.SetAllIndices(new ushort[] { 2, 1, 0, 3, 2, 0 });
 
-            if (_workspace.File == null)
+            if (_canvas.File == null)
                 return;
 
             // Draw each layer
-            foreach (var petexture in _workspace.File.images.Where(t => t.frame == _workspace.SelectedFrame).OrderBy(t => t.layer.order))
+            foreach (var petexture in _canvas.File.images.Where(t => t.frame == _canvas.SelectedFrame).OrderBy(t => t.layer.order))
             {
                 if (!petexture.layer.visible)
                     continue;

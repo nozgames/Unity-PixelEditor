@@ -1,3 +1,9 @@
+
+#CenterPane
+{
+	flex-grow: 1;
+}
+
 .imageButton
 {
     padding: 4px;
@@ -22,7 +28,7 @@ ScrollView
 	margin-bottom: 4px;
 }
 
-#Canvas {
+#ImageView {
     margin: auto;
 }
 
@@ -156,29 +162,13 @@ ScrollView
 	height: 24px;
 }
 
-#LeftPane
-{
-	flex-direction: row;	
-	min-width: 100px;	
-}
-
-#RightSplitter
-{
-	flex-grow: 1;	
-	flex-direction: row;
-}
-
-#RightPane > ScrollView
-{	
-	flex-grow: 1;
-}
-
 #RightPane
 {
 	border-left-width: 1px;
 	border-color: #232323;
 	min-width: 150px;
 }
+
 
 #Preview
 {
@@ -196,12 +186,6 @@ ScrollView
 	border-bottom-width: 1px;
 	border-color: #232323;
 	padding: 16px;
-}
-
-#CenterPane
-{
-	flex-grow: 1;
-	flex-direction: column;
 }
 
 #ZoomSlider
@@ -262,7 +246,6 @@ ScrollView
 
 #TopPane
 {
-	flex-direction: row;
 	flex-grow: 1;
 }
 
@@ -273,12 +256,17 @@ ScrollView
 }
 
 #Workspace
-{	
-	width: 100%;
-	height: 100%;
+{
+	flex-grow: 1;
+	flex-direction: row;
 }
 
 #Workspace > * > #unity-content-viewport
 {
 	background-color: #313131;
+}
+
+#WorkspaceToolbar
+{
+	flex-direction: row;
 }

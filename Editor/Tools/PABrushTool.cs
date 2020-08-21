@@ -9,9 +9,7 @@ namespace NoZ.PA
         private PAImage _target;
         private Color _drawColor;
 
-        public PABrushTool(PAWorkspace workspace) : base(workspace)
-        {
-        }
+        public PABrushTool(PACanvas canvas) : base(canvas) { }
 
         protected virtual Color GetDrawColor(MouseButton button) => Color.white;
 
@@ -36,7 +34,7 @@ namespace NoZ.PA
 
             _target.texture.Apply();
 
-            Workspace.RefreshImage(false);
+            Canvas.RefreshImage(false);
         }
 
         public override void OnDrawStart(PADrawEvent evt)
@@ -45,7 +43,7 @@ namespace NoZ.PA
                 _drawPosition = CanvasToTexture(evt.imagePosition);
 
             _drawColor = GetDrawColor(evt.button);
-            _target = Workspace.File.AddImage(Workspace.SelectedFrame, Workspace.SelectedLayer);
+            _target = Canvas.File.AddImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
             DrawTo(evt.imagePosition);
         }
 
@@ -55,7 +53,7 @@ namespace NoZ.PA
         public override void OnDrawEnd(PADrawEvent evt, bool cancelled)
         {
             _target = null;
-            Workspace.RefreshImage();
+            Canvas.RefreshImage();
         }
     }
 }

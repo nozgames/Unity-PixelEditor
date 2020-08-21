@@ -28,7 +28,7 @@ namespace NoZ.PA
         public bool HasSelection => Selection != null;
 
 
-        public PASelectionTool(PAWorkspace workspace) : base(workspace)
+        public PASelectionTool(PACanvas canvas) : base(canvas)
         {
             // Must move 1 pixel before drawing begins
             DrawThreshold = 1.0f;
@@ -52,13 +52,13 @@ namespace NoZ.PA
 
         public override void OnDrawStart(PADrawEvent evt)
         {
-            _pivot = Workspace.ClampImagePosition(evt.imagePosition);
+            _pivot = Canvas.ClampImagePosition(evt.imagePosition);
             MarkDirtyRepaint();
         }
 
         public override void OnDrawContinue(PADrawEvent evt)
         {
-            var drawPosition = Workspace.ClampImagePosition(evt.imagePosition);
+            var drawPosition = Canvas.ClampImagePosition(evt.imagePosition);
             var min = Vector2Int.Min(_pivot, drawPosition);
             var max = Vector2Int.Max(_pivot, drawPosition);
             Selection = new RectInt(min, max - min + Vector2Int.one);
@@ -76,8 +76,8 @@ namespace NoZ.PA
             if (null == Selection)
                 return;
 
-            var min = Workspace.ImageToCanvas(Selection.Value.min);
-            var max = Workspace.ImageToCanvas(Selection.Value.max);
+            var min = Canvas.ImageToCanvas(Selection.Value.min);
+            var max = Canvas.ImageToCanvas(Selection.Value.max);
 
             Handles.color = Color.white;
             Handles.DrawSolidRectangleWithOutline(new Rect(min, max-min), IsDrawing ? FillColor : Color.clear, BorderColor);
@@ -95,7 +95,7 @@ namespace NoZ.PA
 
         public override void SetCursor(Vector2Int canvasPosition)
         {
-            Workspace.SetCursor(_cursor, _cursorHotspot);
+            Canvas.SetCursor(_cursor, _cursorHotspot);
         }
 
         public override bool OnKeyDown(PAKeyEvent evt)
@@ -107,15 +107,15 @@ namespace NoZ.PA
                     if (Selection == null)
                         break;
 
-                    var image = Workspace.File.AddImage(Workspace.SelectedFrame, Workspace.SelectedLayer);
+                    var image = Canvas.File.AddImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
                     if (null != image)
                     {
                         image.texture.FillRect(
                             CanvasToTexture(Selection.Value), 
-                            evt.ctrl ? Workspace.BackgroundColor : Workspace.ForegroundColor);
+                            evt.ctrl ? Canvas.BackgroundColor : Canvas.ForegroundColor);
 
                         image.texture.Apply();
-                        Workspace.RefreshImage();
+                        Canvas.RefreshImage();
                     }
 
                     return false;
@@ -125,12 +125,12 @@ namespace NoZ.PA
                 {
                     if (Selection != null)
                     {
-                        var image = Workspace.File.FindImage(Workspace.SelectedFrame, Workspace.SelectedLayer);
+                        var image = Canvas.File.FindImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
                         if (null != image)
                         {
                             image.texture.FillRect(CanvasToTexture(Selection.Value), Color.clear);
                             image.texture.Apply();
-                            Workspace.RefreshImage();
+                            Canvas.RefreshImage();
                             return false;
                         }
                     }

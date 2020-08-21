@@ -12,14 +12,14 @@ namespace NoZ.PA
         private static readonly Vector2 _cursorHotspot = new Vector2(11, 19);
         private Texture2D _cursor = null;
 
-        public PAEraserTool(PAWorkspace workspace) : base(workspace)
+        public PAEraserTool(PACanvas canvas) : base(canvas)
         {
             _cursor = PAUtils.LoadCursor("Crosshair.psd");
         }
 
         public override void SetCursor(Vector2Int canvasPosition)
         {
-            Workspace.SetCursor(_cursor, _cursorHotspot);
+            Canvas.SetCursor(_cursor, _cursorHotspot);
         }
 
         protected override Color GetDrawColor(MouseButton button) => Color.clear;

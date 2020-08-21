@@ -13,11 +13,11 @@ namespace NoZ.PA
         public bool alt;
         public bool ctrl;
 
-        public static PAMouseEvent Create<T>(PAWorkspace workspace, MouseEventBase<T> evt) where T : MouseEventBase<T>, new() => new PAMouseEvent
+        public static PAMouseEvent Create<T>(PACanvas canvas, MouseEventBase<T> evt) where T : MouseEventBase<T>, new() => new PAMouseEvent
         {
             button = (MouseButton)evt.button,
             canvasPosition = evt.localMousePosition,
-            imagePosition = workspace.CanvasToImage(evt.localMousePosition),
+            imagePosition = canvas.CanvasToImage(evt.localMousePosition),
             shift = evt.shiftKey,
             alt = evt.altKey,
             ctrl = evt.ctrlKey

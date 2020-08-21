@@ -11,24 +11,22 @@ namespace NoZ.PA
         private Vector2 _scrollStart;
         private Vector2 _mouseStart;
 
-        public PAPanTool(PAWorkspace workspace) : base (workspace)
-        {
-        }
+        public PAPanTool(PACanvas canvas) : base (canvas) { }
 
         public override void SetCursor(Vector2Int canvasPosition)
         {
-            Workspace.SetCursor(MouseCursor.Pan);
+            Canvas.SetCursor(MouseCursor.Pan);
         }
 
         public override void OnDrawStart(PADrawEvent evt)
         {
-            _mouseStart = Workspace.CanvasToViewport(evt.canvasPosition);
-            _scrollStart = Workspace.ScrollOffset;
+            _mouseStart = Canvas.Workspace.CanvasToViewport(evt.canvasPosition);
+            _scrollStart = Canvas.Workspace.ViewportOffset;
         }
 
         public override void OnDrawContinue(PADrawEvent evt)
         {
-            Workspace.ScrollOffset = _scrollStart - (Workspace.CanvasToViewport(evt.canvasPosition) - _mouseStart);
+            Canvas.Workspace.ViewportOffset = _scrollStart - (Canvas.Workspace.CanvasToViewport(evt.canvasPosition) - _mouseStart);
         }
     }
 }

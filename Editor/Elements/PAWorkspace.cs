@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Linq;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -7,152 +9,26 @@ namespace NoZ.PA
 {
     internal class PAWorkspace : VisualElement
     {
-        public const float ZoomMin = 1.0f;
-        public const float ZoomMax = 50.0f;
-        private const float ZoomIncrementUp = 1.1f;
-        private const float ZoomIncrementDown = 1.0f / ZoomIncrementUp;
-
-        private VisualElement _canvas;
-        private PALayer _selectedLayer;
-        private PAFrame _selectedFrame;
+        private Slider _zoomSlider = null;
         private ScrollView _scrollView;
-        private Color _foregroundColor;
-        private Color _backgroundColor;
-        private PAFile _file;
-        private int _drawButton = -1;
-        private Vector2 _drawStart;
-        private Vector2 _drawLast;
-        private Vector2 _lastMousePosition;
-        private PATool _previousTool;
-        private PATool _selectedTool;
-        private PACursorManager _workspaceCursor;
-        private PAImageView _image;
-
-        public event Action ZoomChangedEvent;
-        public event Action ToolChangedEvent;
-        public event Action SelectedLayerChangedEvent;
-        public event Action SelectedFrameChangedEvent;
-        public event Action ForegroundColorChangedEvent;
-        public event Action BackgroundColorChangedEvent;
-
-        public PAGrid Grid { get; private set; }
-        public PAEyeDropperTool EyeDropperTool { get; private set; }
-        public PAPencilTool PencilTool { get; private set; }
-        public PAEraserTool EraserTool { get; private set; }
-        public PASelectionTool SelectionTool { get; private set; }
-        public PAPanTool PanTool { get; private set; }
+        private ColorField _foregroundColor = null;
+        private ColorField _backgroundColor = null;
+        private PAReorderableList _layers = null;
+        private PAReorderableList _frames = null;
 
         public PixelArt Target { get; private set; }
-        
-        public PAFile File {
-            get => _file;
-            set {
-                if (_file == value)
-                    return;
 
-                _file = value;
+        public PAEditor Editor { get; private set; }
+        public PACanvas Canvas { get; private set; }
 
-                SelectedFrame = _file.frames[0];
-                SelectedLayer = _file.layers[0];
-            }
-        }
+        public VisualElement Toolbar { get; private set; }
+        public VisualElement Toolbox { get; private set; }
 
         public Vector2 ViewportSize => new Vector2(
             _scrollView.contentViewport.contentRect.width,
             _scrollView.contentViewport.contentRect.height);
 
-        public Vector2 CanvasSize {
-            get => new Vector2(
-                _scrollView.contentContainer.style.width.value.value,
-                _scrollView.contentContainer.style.height.value.value);
-            
-            set {
-                _scrollView.contentContainer.style.width = value.x;
-                _scrollView.contentContainer.style.height = value.y;
-            }
-        }
-
-        public PAAnimation CurrentAnimation => SelectedFrame?.animation;
-
-        /// <summary>
-        /// Returns true if a drawing operation is currently in progress
-        /// </summary>
-        public bool IsDrawing { get; private set; }
-
-        /// <summary>
-        /// Exeternal access to enabling/disabling the checkerboard background
-        /// </summary>
-        public bool ShowCheckerboard {
-            get => _image.ShowCheckerboard;
-            set => _image.ShowCheckerboard = value;
-        }
-
-        /// <summary>
-        /// Current selected tool
-        /// </summary>
-        public PATool SelectedTool {
-            get => _selectedTool;
-            set {
-                if (_selectedTool == value)
-                    return;
-
-                _previousTool = _selectedTool;
-
-                if (_selectedTool != null)
-                {
-                    _selectedTool.visible = false;
-                    _selectedTool.OnDisable();
-                }
-
-                _selectedTool = value;
-                if (_selectedTool != null)
-                {
-                    _selectedTool.visible = true;
-                    _selectedTool.OnEnable();
-                    _selectedTool.MarkDirtyRepaint();
-                }
-
-                ToolChangedEvent?.Invoke();
-
-                RefreshCursor();
-            }
-        }
-
-        /// <summary>
-        /// Layer that is currently selected in the workspace
-        /// </summary>
-        public PALayer SelectedLayer {
-            get => _selectedLayer;
-            set {
-                if (_selectedLayer == value)
-                    return;
-
-                _selectedLayer = value;
-
-                SelectedLayerChangedEvent?.Invoke();
-
-                RefreshImage();
-            }
-        }
-
-        /// <summary>
-        /// Frame that is currently selected in the workspace
-        /// </summary>
-        public PAFrame SelectedFrame {
-            get => _selectedFrame;
-            set {
-                if (value == _selectedFrame)
-                    return;
-
-                _selectedFrame = value;
-
-                SelectedFrameChangedEvent?.Invoke();
-
-                RefreshImage();
-            }
-        }
-
-        public Vector2 ScrollOffset {
+        public Vector2 ViewportOffset {
             get => _scrollView.scrollOffset;
             set {
                 _scrollView.scrollOffset = value;
@@ -161,433 +37,436 @@ namespace NoZ.PA
         }
 
         /// <summary>
-        /// Forground color for drawing
-        /// </summary>
-        public Color ForegroundColor {
-            get => _foregroundColor;
-            set {
-                if (_foregroundColor == value)
-                    return;
-                
-                _foregroundColor = value;
-
-                ForegroundColorChangedEvent?.Invoke();
-            }
-        }
-
-        /// <summary>
-        /// Background color for drawing
-        /// </summary>
-        public Color BackgroundColor {
-            get => _backgroundColor;
-            set {
-                if (_backgroundColor == value)
-                    return;
-
-                _backgroundColor = value;
-
-                BackgroundColorChangedEvent?.Invoke();
-            }
-        }
-
-        /// <summary>
-        /// Current zoom level
-        /// </summary>
-        public float Zoom { get; private set; }
-
-        /// <summary>
         /// Handle gui messages
         /// </summary>
-        internal void OnGUI()
+        internal void OnGUI() => Canvas.OnGUI();
+
+        public PAWorkspace(PAEditor editor)
         {
-            if (Event.current.type == EventType.Layout)
-                UpdateScrollView();
-        }
+            Editor = editor;
 
-        /// <summary>
-        /// Width of the canvas in pixels
-        /// </summary>
-        public int ImageWidth => File?.width ?? 0;
+            // Toolbox on left side of top pane
+            var toolbox = CreateToolBox();
+            Add(toolbox);
 
-        /// <summary>
-        /// Height of the canvas in pixels
-        /// </summary>
-        public int ImageHeight => File?.height ?? 0;
+            var centerPane = new VisualElement { name = "CenterPane" };
+            Add(centerPane);
 
-        /// <summary>
-        /// Size of the canvas in pixels
-        /// </summary>
-        public Vector2Int ImageSize => new Vector2Int(ImageWidth, ImageHeight);
+            _scrollView = new ScrollView { name = "TopPane" };
+            _scrollView.showHorizontal = true;
+            _scrollView.showVertical = true;
+            centerPane.Add(_scrollView);
 
-        /// <summary>
-        /// Returns the image rectangle within the canvas
-        /// </summary>
-        public Rect ImageRect =>
-            new Rect(
-                _canvas.contentRect.min + _canvas.contentRect.size * 0.5f - (Vector2)ImageSize * Zoom * 0.5f, 
-                (Vector2)ImageSize * Zoom);
+            var bottomPane = new VisualElement { name = "BottomPane" };
+            centerPane.Add(bottomPane);
 
-        public PAWorkspace()
-        {            
-            // Canvas is within the scrollview
-            _scrollView = new ScrollView();
-            _scrollView.StretchToParentSize();
-            Add(_scrollView);
+            Canvas = new PACanvas(this) { name = "Canvas" };
+            //Canvas.StretchToParentSize();
+            Canvas.ZoomChangedEvent += () => _zoomSlider?.SetValueWithoutNotify(Canvas.Zoom);
+            Canvas.ToolChangedEvent += OnToolChanged;
+            Canvas.ForegroundColorChangedEvent += () => _foregroundColor.value = Canvas.ForegroundColor;
+            Canvas.BackgroundColorChangedEvent += () => _backgroundColor.value = Canvas.BackgroundColor;
+            Canvas.SelectedLayerChangedEvent += () => _layers.Select(Canvas.SelectedLayer?.Item);
+            Canvas.SelectedFrameChangedEvent += () => _frames.Select(Canvas.SelectedFrame?.Item); 
+            _scrollView.Add(Canvas);
 
-            _canvas = new VisualElement();
-            _canvas.StretchToParentSize();
-            _canvas.RegisterCallback<WheelEvent>(OnWheel);
-            _canvas.RegisterCallback<MouseDownEvent>(OnMouseDown);
-            _canvas.RegisterCallback<MouseUpEvent>(OnMouseUp);
-            _canvas.RegisterCallback<MouseMoveEvent>(OnMouseMove);
-            _canvas.RegisterCallback<MouseCaptureOutEvent>(OnMouseCaptureOut);
-            _canvas.RegisterCallback<MouseEnterEvent>(OnMouseEnter);
-            _canvas.RegisterCallback<MouseLeaveEvent>(OnMouseLeave);
-            _scrollView.Add(_canvas);
+            // Right pane
+            var rightPane = new VisualElement { name = "RightPane" };
+            Add(rightPane);
 
-            // Canvas
-            _image = new PAImageView(this) { name = "Canvas" };
-            _image.pickingMode = PickingMode.Ignore;
-            _canvas.Add(_image);
+            var previewPane = new VisualElement { name = "PreviewPane" };
+            rightPane.Add(previewPane);
 
-            // Pixel grid
-            Grid = new PAGrid(this);
-            _canvas.Add(Grid);
+            var preview = new Image { name = "Preview" };
+            previewPane.Add(preview);
 
-            // Create the tools
-            PencilTool = new PAPencilTool(this);
-            _canvas.Add(PencilTool);
+            var layersPane = new VisualElement { name = "LayersPane" };
+            rightPane.Add(layersPane);
 
-            EraserTool = new PAEraserTool(this);
-            _canvas.Add(EraserTool);
+            var layersToolbar = new VisualElement { name = "LayersToolbar" };
+            layersPane.Add(layersToolbar);
 
-            EyeDropperTool = new PAEyeDropperTool(this);
-            _canvas.Add(EraserTool);
+            var toolbarSpacer = new VisualElement();
+            toolbarSpacer.AddToClassList("spacer");
 
-            SelectionTool = new PASelectionTool(this);
-            _canvas.Add(SelectionTool);
+            layersToolbar.Add(toolbarSpacer);
+            layersToolbar.Add(PAUtils.CreateImageButton("LayerAdd.psd", "Create a new layer", AddLayer));
+            layersToolbar.Add(PAUtils.CreateImageButton("Delete.psd", "Delete layer", RemoveLayer));
 
-            PanTool = new PAPanTool(this);
-            _canvas.Add(PanTool);
+            var layersScrollView = new ScrollView();
+            layersPane.Add(layersScrollView);
 
-            // Create an element to manage the workspace cursor
-            _workspaceCursor = new PACursorManager();
-            _workspaceCursor.StretchToParentSize();
-            _workspaceCursor.pickingMode = PickingMode.Ignore;
-            _canvas.Add(_workspaceCursor);
-        }
-
-        /// <summary>
-        /// Refresh the image and optionally and previews of the canvas as well
-        /// </summary>
-        public void RefreshImage (bool includePreviews=true)
-        {
-            if(includePreviews)
+            _layers = new PAReorderableList() { name = "Layers" };
+            _layers.onItemMoved += (oldIndex, newIndex) =>
             {
-                // Update frame preview of selected frame
-                SelectedFrame.Item?.RefreshPreview();
+                for (int itemIndex = 0; itemIndex < _layers.itemCount; itemIndex++)
+                    ((PALayerItem)_layers.ItemAt(itemIndex)).Layer.order = _layers.itemCount - itemIndex - 1;
 
-                // Update all layer previews
-                foreach (var layer in File.layers)
-                    layer.Item?.RefreshPreview(SelectedFrame);
-            }
+                Canvas.RefreshImage();
+            };
+            _layers.onItemSelected += (i) => Canvas.SelectedLayer = ((PALayerItem)_layers.ItemAt(i)).Layer;
+            layersScrollView.contentContainer.Add(_layers);
 
-            _image.MarkDirtyRepaint();
-        }
+            toolbarSpacer = new VisualElement();
+            toolbarSpacer.AddToClassList("spacer");
 
-        /// <summary>
-        /// Update the scrollview size
-        /// </summary>
-        private void UpdateScrollView()
-        {
-            if (_scrollView == null)
-                return;
+            var framesToolbar = new VisualElement();
+            framesToolbar.name = "FramesToolbar";
+            framesToolbar.Add(toolbarSpacer);
+            framesToolbar.Add(PAUtils.CreateImageButton("LayerAdd.psd", "Create a new frame", AddFrame));
+            framesToolbar.Add(PAUtils.CreateImageButton("Duplicate.psd", "Duplicate selected frame", DuplicatFrame));
+            framesToolbar.Add(PAUtils.CreateImageButton("Delete.psd", "Delete layer", RemoveFrame));
+            bottomPane.Add(framesToolbar);
 
-            // Dont update the scrollview until it has been laid out
-            if (float.IsNaN(ViewportSize.x) ||
-                float.IsNaN(ViewportSize.y))
-                return;
+            var framesScrollView = new ScrollView();
+            framesScrollView.showHorizontal = true;
+            framesScrollView.showVertical = false;
+            bottomPane.Add(framesScrollView);
 
-            // Set the new workspace size
-            CanvasSize = Vector2.Max(
-                ViewportSize * 2.0f - (Vector2)ImageSize * Zoom,
-                (Vector2)ImageSize * Zoom + ViewportSize);
-        }
-
-        /// <summary>
-        /// Set the Zoom and ScrollOffset such that the content fits to the scroll view area.
-        /// </summary>
-        public void ZoomToFit()
-        {
-            // If the scrollview isnt ready yet then wait till it is.  This mainly happens on 
-            // a file load right when the window is opening.
-            if (float.IsNaN(_scrollView.contentViewport.contentRect.width) ||
-               float.IsNaN(_scrollView.contentViewport.contentRect.height))
+            _frames = new PAReorderableList() { name = "Frames" };
+            _frames.direction = ReorderableListDirection.Horizontal;
+            _frames.onItemMoved += (oldIndex, newIndex) =>
             {
-                UpdateScrollView();
-                _scrollView.schedule.Execute(ZoomToFit);
-                return;
-            }
+                for (int itemIndex = 0; itemIndex < _frames.itemCount; itemIndex++)
+                    ((PAFrame)_frames.ItemAt(itemIndex).userData).order = itemIndex;
 
-            // Set the new zoom level
-            var zoom = _scrollView.contentViewport.contentRect.size * 0.9f / (Vector2)ImageSize;
-            SetZoom(Mathf.Min(zoom.x, zoom.y), Vector2.zero);
+                Canvas.RefreshImage();
+            };
+            _frames.onItemSelected += (i) => Canvas.SelectedFrame = ((PAFrameItem)_frames.ItemAt(i)).Frame;
 
-            // Offset the scroll view to center the content
-            ScrollOffset = (CanvasSize - ViewportSize) * 0.5f;
+            framesScrollView.contentContainer.Add(_frames);
 
-            RefreshImage();
-        }
+            RegisterCallback<KeyDownEvent>(OnKeyDown);
 
-        /// <summary>
-        /// Helper function to clamp the given image position to the image bounds
-        /// </summary>
-        public Vector2Int ClampImagePosition(Vector2Int imagePosition) =>
-            new Vector2Int(
-                Mathf.Clamp(imagePosition.x, 0, ImageWidth - 1), 
-                Mathf.Clamp(imagePosition.y, 0, ImageHeight - 1));
-
-        /// <summary>
-        /// Convert the given image position to a canvas position
-        /// </summary>
-        public Vector2 ImageToCanvas(Vector2Int imagePosition) =>
-            ImageRect.min + (Vector2)imagePosition * Zoom;
-
-        /// <summary>
-        /// Convert a coordinate from the workspace to the canvas.  Note that this 
-        /// coordinate is not clamped to the canvas, use ClampCanvasPosition to do so.
-        /// </summary>
-        public Vector2Int CanvasToImage(Vector2 canvasPosition)
-        {
-            canvasPosition -= _canvas.contentRect.center;
-            canvasPosition /= new Vector2(ImageWidth * Zoom, ImageHeight * Zoom);
-            canvasPosition += new Vector2(0.5f, 0.5f);
-            canvasPosition *= new Vector2(ImageWidth, ImageHeight);
-            return new Vector2Int(
-                (int)Mathf.Floor(canvasPosition.x),
-                (int)Mathf.Floor(canvasPosition.y));
+            CreateToolbar();            
         }
 
         /// <summary>
         /// Convert a canvas position to a viewport position
         /// </summary>
         public Vector2 CanvasToViewport(Vector2 canvasPosition) =>
-            _canvas.ChangeCoordinatesTo(_scrollView.contentViewport, canvasPosition);
+            Canvas.ChangeCoordinatesTo(_scrollView.contentViewport, canvasPosition);
 
         /// <summary>
         /// Convert a viewport position to a canvas position
         /// </summary>
-        public Vector2 ViewportToCanvas (Vector2 viewportPosition) => ScrollOffset + viewportPosition;
+        public Vector2 ViewportToCanvas(Vector2 viewportPosition) => ViewportOffset + viewportPosition;
 
-        public void SetCursor(MouseCursor cursor) => _workspaceCursor.Cursor = cursor;
 
-        public void SetCursor(Texture2D texture, Vector2 hotspot) => _workspaceCursor.SetCursor(texture, hotspot);
-
-        public Vector2 SetZoom(float zoom, Vector2 referencePosition)
+        /// <summary>
+        /// Open the given pixel art file in the editor
+        /// </summary>
+        public void OpenFile(PixelArt target)
         {
-            if (zoom == Zoom)
-                return referencePosition;
+            Target = target;
 
-            var oldzoom = Zoom;
-            Zoom = zoom;
+            Canvas.File = PAFile.Load(AssetDatabase.GetAssetPath(target));
+            Canvas.SelectedTool = Canvas.PencilTool;
 
-            // Determine where on the canvas the mouse was previously
-            var oldWorkspaceSize = CanvasSize;
-            var oldImageSize = (Vector2)ImageSize * oldzoom;
-            var referenceImageSize = (referencePosition - (oldWorkspaceSize - oldImageSize) * 0.5f) / oldImageSize;
+            RefreshFrameList();
+            RefreshLayersList();
 
-            // Resize the canvas.
-            _image.style.width = ImageWidth * Zoom;
-            _image.style.height = ImageHeight * Zoom;
+            Canvas.ZoomToFit();
 
-            UpdateScrollView();
+            EditorApplication.quitting += CloseFile;
+        }
 
-            // Position the cursor over the same pixel in the canvas that it was over before the zoom
-            var newCanvasSize = CanvasSize;
-            var viewPosition = _canvas.ChangeCoordinatesTo(_scrollView.contentViewport, referencePosition);
-            var newImageSize = (Vector2)ImageSize * Zoom;
-            referencePosition = (newCanvasSize - newImageSize) * 0.5f + referenceImageSize * newImageSize;
-            ScrollOffset = referencePosition - viewPosition;
+        public void SaveFile()
+        {
+            if (Target == null || null == Canvas.File)
+                return;
 
-            ZoomChangedEvent?.Invoke();
+            Canvas.File.Save(AssetDatabase.GetAssetPath(Target));
+            AssetDatabase.Refresh();
+        }
 
-            RefreshImage();
-            SelectedTool.MarkDirtyRepaint();
-            RefreshCursor();
+        public void CloseFile()
+        {
+            // Save existing artwork first
+            SaveFile();
 
-            return referencePosition;
+            Target = null;
+            Canvas.File = null;
+
+            EditorApplication.quitting -= CloseFile;
+        }
+
+
+        /// <summary>
+        /// Create the toolbox
+        /// </summary>
+        private VisualElement CreateToolBox()
+        {
+            Toolbox = new VisualElement { name = "Toolbox" };
+
+            // Tool buttons
+            var selectionToolButton = PAUtils.CreateImageButton("SelectionTool.psd", "Rectangular Marquee Tool (M)", () => Canvas.SelectedTool = Canvas.SelectionTool);
+            selectionToolButton.userData = typeof(PASelectionTool);
+            Toolbox.Add(selectionToolButton);
+
+            var pencilToolButton = PAUtils.CreateImageButton("PencilTool.psd", "Pencil Tool (B)", () => Canvas.SelectedTool = Canvas.PencilTool);
+            pencilToolButton.userData = typeof(PAPencilTool);
+            Toolbox.Add(pencilToolButton);
+
+            var eraserToolButton = PAUtils.CreateImageButton("EraserTool.psd", "Eraser Tool (E)", () => Canvas.SelectedTool = Canvas.EraserTool);
+            eraserToolButton.userData = typeof(PAEraserTool);
+            Toolbox.Add(eraserToolButton);
+
+            var eyeDropperToolButton = PAUtils.CreateImageButton("EyeDropperTool.psd", "Eyedropper Tool (I)", () => Canvas.SelectedTool = Canvas.EyeDropperTool);
+            eyeDropperToolButton.userData = typeof(PAEyeDropperTool);
+            Toolbox.Add(eyeDropperToolButton);
+
+            // Foreground color selector
+            _foregroundColor = new ColorField();
+            _foregroundColor.showEyeDropper = false;
+            _foregroundColor.value = Color.white;
+            _foregroundColor.RegisterValueChangedCallback((evt) => { Canvas.ForegroundColor = evt.newValue; });
+            Toolbox.Add(_foregroundColor);
+
+            // Background color selector
+            _backgroundColor = new ColorField();
+            _backgroundColor.showEyeDropper = false;
+            _backgroundColor.value = Color.white;
+            _backgroundColor.RegisterValueChangedCallback((evt) => { Canvas.BackgroundColor = evt.newValue; });
+            Toolbox.Add(_backgroundColor);
+
+            return Toolbox;
         }
 
         /// <summary>
-        /// Handle a mouse button down within the workspace
+        /// Refresh the list of layers
         /// </summary>
-        private void OnMouseDown (MouseDownEvent evt)
+        private void RefreshLayersList()
         {
-            // Middle button is pan tool
-            if ((MouseButton)evt.button == MouseButton.MiddleMouse)
-            {
-                _previousTool = SelectedTool;
-                SelectedTool = PanTool;
-            }
+            _layers.RemoveAllItems();
 
-            // Give the tool a chance to handle the mouse down first
-            SelectedTool?.OnMouseDown(new PAMouseEvent
-            {
-                button = (MouseButton)evt.button,
-                alt = evt.altKey,
-                shift = evt.shiftKey,
-                ctrl = evt.ctrlKey,
-                imagePosition = CanvasToImage(evt.localMousePosition),
-                canvasPosition = evt.localMousePosition
-            });
-
-            // Ignore all mouse buttons when drawing
-            if (IsDrawing)
+            if (Canvas.File == null)
                 return;
 
-            // Alwasys capture the mouse between mouse down/up
-            MouseCaptureController.CaptureMouse(_canvas);
+            foreach (var layer in Canvas.File.layers.OrderByDescending(l => l.order))
+                _layers.AddItem(new PALayerItem(Canvas, layer));
 
-            _drawButton = evt.button;
-            _drawStart = evt.localMousePosition;
-            _drawLast = _drawStart;
+            _layers.Select(0);
+        }
 
-            if (SelectedTool.DrawThreshold <= 0.0f)
-            {
-                IsDrawing = true;
-                SelectedTool?.OnDrawStart(new PADrawEvent
+        /// <summary>
+        /// Refresh the list of frames
+        /// </summary>
+        private void RefreshFrameList()
+        {
+            _frames.RemoveAllItems();
+
+            if (null == Canvas.File)
+                return;
+
+            foreach (var frame in Canvas.File.frames.OrderBy(f => f.order))
+                _frames.AddItem(new PAFrameItem(frame));
+        }
+
+        private void AddLayer()
+        {
+            var addedLayer = Canvas.File.AddLayer();
+            RefreshLayersList();
+            Canvas.SelectedLayer = addedLayer;
+        }
+
+        private void RemoveLayer()
+        {
+            // Dont allow the last layer to be removed
+            if (Canvas.File.layers.Count < 2)
+                return;
+
+            var order = Canvas.SelectedLayer.order;
+            Canvas.File.RemoveLayer(Canvas.SelectedLayer);
+            RefreshLayersList();
+            _layers.Select(Mathf.Min(order, Canvas.File.layers.Count - 1));
+
+            Canvas.RefreshImage();
+        }
+
+        /// <summary>
+        /// Add a new empty frame
+        /// </summary>
+        private void AddFrame()
+        {
+            Canvas.File.AddFrame(Canvas.CurrentAnimation);
+            RefreshFrameList();
+        }
+
+        /// <summary>
+        /// Duplicate the selected frame
+        /// </summary>
+        private void DuplicatFrame()
+        {
+            if (Canvas.File == null)
+                return;
+
+            var frame = Canvas.File.InsertFrame(Canvas.CurrentAnimation, Canvas.SelectedFrame.order + 1);
+            Canvas.File.images.AddRange(
+                Canvas.File.images.Where(i => i.frame == Canvas.SelectedFrame).Select(i => new PAImage
                 {
-                    start = _drawStart,
-                    button = (MouseButton)_drawButton,
-                    alt = evt.altKey,
-                    shift = evt.shiftKey,
-                    ctrl = evt.ctrlKey,
-                    imagePosition = CanvasToImage(_drawStart),
-                    canvasPosition = _drawStart
-                });
-            }
+                    frame = frame,
+                    layer = i.layer,
+                    texture = i.texture.Clone()
+                }).ToList());
+
+            RefreshFrameList();
+            Canvas.SelectedFrame = frame;
         }
 
         /// <summary>
-        /// Handle a mouse button up within the workspace
+        /// Remove the selected frame
         /// </summary>
-        private void OnMouseUp (MouseUpEvent evt)
+        private void RemoveFrame()
         {
-            SelectedTool?.OnMouseUp(PAMouseEvent.Create(this, evt));
+            // Dont allow the last layer to be removed
+            if (Canvas.File.frames.Count < 2)
+                return;
 
-            // If drawing then end the drawing
-            if (IsDrawing)
-            {
-                SelectedTool?.OnDrawEnd(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart), false);
-
-                _drawButton = -1;
-                IsDrawing = false;
-
-                // If middle button pan was active then return to the previous tool
-                if ((MouseButton)evt.button == MouseButton.MiddleMouse && SelectedTool == PanTool)
-                    SelectedTool = _previousTool;
-            }
-
-            // Release the mouse capture
-            if (MouseCaptureController.HasMouseCapture(_canvas))
-                MouseCaptureController.ReleaseMouse();
+            var order = Canvas.SelectedFrame.order;
+            Canvas.File.RemoveFrame(Canvas.SelectedFrame);
+            RefreshFrameList();
+            _frames.Select(Mathf.Min(order, Canvas.File.frames.Count - 1));
+            Canvas.RefreshImage();
         }
 
-
-        /// <summary>
-        /// Handle the mouse moving over the workspace
-        /// </summary>
-        private void OnMouseMove (MouseMoveEvent evt)
+        private void OnKeyDown(KeyDownEvent evt)
         {
-            SelectedTool?.OnMouseMove(PAMouseEvent.Create(this, evt));
-
-            _lastMousePosition = evt.localMousePosition;
-            var canvasPosition = CanvasToImage(evt.localMousePosition);
-
-            if (IsDrawing)
+            // Send the key to the current tool
+            if (!Canvas.SelectedTool?.OnKeyDown(PAKeyEvent.Create(evt)) ?? true)
             {
-                _drawLast = evt.localMousePosition;
-
-                SelectedTool?.OnDrawContinue(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
-            }
-            else if (_drawButton != -1 && (evt.localMousePosition - _drawStart).magnitude >= SelectedTool.DrawThreshold)
-            {
-                IsDrawing = true;
-                SelectedTool?.OnDrawStart(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
+                evt.StopImmediatePropagation();
+                return;
             }
 
-            SelectedTool?.SetCursor(canvasPosition);
-        }
-
-        /// <summary>
-        /// Handle the workspace losing capture
-        /// </summary>
-        private void OnMouseCaptureOut (MouseCaptureOutEvent evt)
-        {
-            // If drawing then cancel the draw
-            if (IsDrawing)
+            // Handle window level key commands
+            switch (evt.keyCode)
             {
-                // If middle button pan was active then return to the previous tool
-                if ((MouseButton)_drawButton == MouseButton.MiddleMouse && SelectedTool == PanTool)
-                    SelectedTool = _previousTool;
+                case KeyCode.F:
+                    Canvas.ZoomToFit();
+                    break;
 
-                SelectedTool?.OnDrawEnd(new PADrawEvent
+                case KeyCode.A:
+                    // Ctrl+a = select all
+                    if (evt.ctrlKey)
+                    {
+                        Canvas.SelectedTool = Canvas.SelectionTool;
+                        Canvas.SelectionTool.Selection = new RectInt(0, 0, Canvas.ImageWidth, Canvas.ImageHeight);
+                        evt.StopImmediatePropagation();
+                    }
+                    break;
+
+                // Swap foreground and background colors
+                case KeyCode.X:
                 {
-                    button = (MouseButton)_drawButton,
-                    alt = false,
-                    ctrl = false,
-                    shift = false,
-                    imagePosition = CanvasToImage(_drawLast),
-                    canvasPosition = _drawLast,
-                    start = _drawStart
-                }, true);
-                IsDrawing = false;
-            }
+                    var swap = Canvas.ForegroundColor;
+                    Canvas.ForegroundColor = Canvas.BackgroundColor;
+                    Canvas.BackgroundColor = swap;
+                    evt.StopImmediatePropagation();
+                    break;
+                }
 
-            _drawButton = -1;
+                // Change to eyedropper tool
+                case KeyCode.I:
+                    Canvas.SelectedTool = Canvas.EyeDropperTool;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to eraser tool
+                case KeyCode.E:
+                    Canvas.SelectedTool = Canvas.EraserTool;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to pencil tool
+                case KeyCode.B:
+                    Canvas.SelectedTool = Canvas.PencilTool;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to selection tool
+                case KeyCode.M:
+                    Canvas.SelectedTool = Canvas.SelectionTool;
+                    evt.StopImmediatePropagation();
+                    break;
+            }
         }
 
         /// <summary>
-        /// Handle the mouse wheel to zoom in/out
+        /// Handle the selected tool changing by ensuring the matching
+        /// toolbox button is selected.
         /// </summary>
-        private void OnWheel (WheelEvent evt)
+        private void OnToolChanged()
         {
-            _lastMousePosition = SetZoom(
-                Mathf.Clamp(
-                    Zoom * (evt.delta.y < 0 ? ZoomIncrementUp : ZoomIncrementDown),
-                    ZoomMin,
-                    ZoomMax), 
-                _lastMousePosition);
-
-            evt.StopImmediatePropagation();
+            foreach (var child in Toolbox.Children())
+            {
+                if ((Type)child.userData == Canvas.SelectedTool.GetType())
+                    child.AddToClassList("selected");
+                else
+                    child.RemoveFromClassList("selected");
+            }
         }
 
-        private void OnMouseEnter(MouseEnterEvent evt)
+        private void CreateToolbar ()
         {
-            _workspaceCursor.visible = true;
-            RefreshCursor();
+            Toolbar = new VisualElement { name = "WorkspaceToolbar" };
+
+            var toolbarSpacer = new VisualElement();
+            toolbarSpacer.style.flexGrow = 1.0f;
+            Toolbar.Add(toolbarSpacer);
+
+            var zoomImage = new Image();
+            zoomImage.style.width = 16;
+            zoomImage.style.height = 16;
+            zoomImage.image = PAUtils.LoadImage("ZoomIcon.psd");
+            Toolbar.Add(zoomImage);
+
+            _zoomSlider = new Slider { name = "ZoomSlider" };
+            _zoomSlider.lowValue = PACanvas.ZoomMin;
+            _zoomSlider.highValue = PACanvas.ZoomMax;
+            _zoomSlider.AddToClassList("zoom");
+            _zoomSlider.RegisterValueChangedCallback((e) => Canvas.SetZoom(e.newValue, ViewportToCanvas(ViewportSize * 0.5f)));
+            Toolbar.Add(_zoomSlider);
+
+            var framesToggle = new PAImageToggle();
+            framesToggle.checkedImage = PAUtils.LoadImage("FramesToggle.psd");
+            framesToggle.value = true;
+            framesToggle.onValueChanged = (v) => _frames.parent.visible = v;
+            framesToggle.tooltip = "Toggle Frames";
+            Toolbar.Add(framesToggle);
+
+            var layerToggle = new PAImageToggle();
+            layerToggle.checkedImage = PAUtils.LoadImage("LayerToggle.psd");
+            layerToggle.value = true;
+            layerToggle.onValueChanged = (v) => _layers.parent.parent.visible = v;
+            layerToggle.tooltip = "Toggle layers";
+            Toolbar.Add(layerToggle);
+
+            var gridToggle = new PAImageToggle();
+            gridToggle.checkedImage = PAUtils.LoadImage("GridToggle.psd");
+            gridToggle.value = true;
+            gridToggle.onValueChanged = (v) => Canvas.Grid.ShowPixels = v;
+            gridToggle.tooltip = "Toggle pixel grid";
+            Toolbar.Add(gridToggle);
+
+            var checkerboardToggle = new PAImageToggle();
+            checkerboardToggle.checkedImage = PAUtils.LoadImage("Grid.psd");
+            checkerboardToggle.value = true;
+            checkerboardToggle.onValueChanged = (v) =>
+            {
+                Canvas.ShowCheckerboard = v;
+                Canvas.RefreshImage();
+            };
+            checkerboardToggle.tooltip = "Toggle checkerboard";
+            Toolbar.Add(checkerboardToggle);
+
+            var saveButton = new ToolbarButton();
+            saveButton.text = "Save";
+            saveButton.clickable.clicked += SaveFile;
+            Toolbar.Add(saveButton);
+
+            // Add the toolbar to the main toolbar
+            Editor.Toolbar.Add(Toolbar);
         }
-
-        private void OnMouseLeave(MouseLeaveEvent evt)
-        {
-            _workspaceCursor.visible = false;
-        }
-
-        private void RefreshCursor()
-        {
-            if (!_workspaceCursor.visible)
-                return;
-
-            if (SelectedTool == null)
-                return;
-
-            if (MouseCaptureController.IsMouseCaptured() && !MouseCaptureController.HasMouseCapture(_canvas))
-                return;
-
-            SelectedTool.SetCursor(CanvasToImage(_lastMousePosition));
-            _workspaceCursor.Refresh();
-        }
-
-        public void SetFocusToCanvas() => _canvas.Focus();
     }
 }

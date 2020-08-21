@@ -14,13 +14,13 @@ namespace NoZ.PA
         private static readonly Vector2 _cursorHotspot = new Vector2(0, 31);
         private Texture2D _cursor = null;
 
-        public PAEyeDropperTool(PAWorkspace workspace) : base(workspace)
+        public PAEyeDropperTool(PACanvas canvas) : base(canvas)
         {
             _cursor = PAUtils.LoadCursor("EyeDropper.psd");
         }
 
         public override void SetCursor(Vector2Int canvasPosition) =>
-            Workspace.SetCursor(_cursor, _cursorHotspot);
+            Canvas.SetCursor(_cursor, _cursorHotspot);
 
         public override void OnDrawStart(PADrawEvent evt) =>
             SampleColor(evt.button, evt.imagePosition);
@@ -35,28 +35,28 @@ namespace NoZ.PA
         {
             if (canvasPosition.x < 0 ||
                 canvasPosition.y < 0 ||
-                canvasPosition.x >= Workspace.ImageWidth ||
-                canvasPosition.y >= Workspace.ImageHeight)
+                canvasPosition.x >= Canvas.ImageWidth ||
+                canvasPosition.y >= Canvas.ImageHeight)
                 return;
 
             if (button == MouseButton.MiddleMouse)
                 return;
 
-            var target = Workspace.File.FindImage(Workspace.SelectedFrame, Workspace.SelectedLayer);
+            var target = Canvas.File.FindImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
             if (null == target)
                 return;
 
             // TODO: option for sample all layers or sample current layer in toolbar
             var color = target.texture.GetPixel(
                 canvasPosition.x,
-                Workspace.ImageHeight - 1 - canvasPosition.y);
+                Canvas.ImageHeight - 1 - canvasPosition.y);
             if (color == Color.clear)
                 return;
 
             if (button == MouseButton.LeftMouse)
-                Workspace.ForegroundColor = color;
+                Canvas.ForegroundColor = color;
             else
-                Workspace.BackgroundColor = color;
+                Canvas.BackgroundColor = color;
         }
     }
 }

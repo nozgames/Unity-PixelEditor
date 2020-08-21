@@ -15,15 +15,15 @@ namespace NoZ.PA
         private const float AlphaMin = 0.0f;
         private const float AlphaMax = 0.5f;
 
-        private PAWorkspace _workspace;
+        private PACanvas _canvas;
         private Color _color;
 
         public bool ShowBorder { get; set; } = true;
         public bool ShowPixels { get; set; } = true;
 
-        public PAGrid(PAWorkspace workspace)
+        public PAGrid(PACanvas canvas)
         {
-            _workspace = workspace;
+            _canvas = canvas;
 
             AddToClassList("pixelGrid");
 
@@ -40,11 +40,11 @@ namespace NoZ.PA
 
         protected override void ImmediateRepaint()
         {
-            if (_workspace.ImageHeight == 0 || _workspace.ImageWidth == 0)
+            if (_canvas.ImageHeight == 0 || _canvas.ImageWidth == 0)
                 return;
 
-            var alpha = Mathf.Clamp((_workspace.Zoom - ZoomAlphaZero) / (ZoomAlphaOne - ZoomAlphaZero), AlphaMin, AlphaMax);
-            var size = new Vector2(_workspace.ImageWidth  * _workspace.Zoom, _workspace.ImageHeight * _workspace.Zoom);
+            var alpha = Mathf.Clamp((_canvas.Zoom - ZoomAlphaZero) / (ZoomAlphaOne - ZoomAlphaZero), AlphaMin, AlphaMax);
+            var size = new Vector2(_canvas.ImageWidth  * _canvas.Zoom, _canvas.ImageHeight * _canvas.Zoom);
             var center = contentRect.center;
 
             GUI.BeginClip(contentRect);
@@ -55,8 +55,8 @@ namespace NoZ.PA
                 if (alpha > 0.0f)
                 {
                     Handles.color = new Color(_color.r, _color.g, _color.b, alpha);
-                    DrawLines(center, size, 0, 1, _workspace.ImageHeight, 1);
-                    DrawLines(center, size, 1, 1, _workspace.ImageWidth, 1);
+                    DrawLines(center, size, 0, 1, _canvas.ImageHeight, 1);
+                    DrawLines(center, size, 1, 1, _canvas.ImageWidth, 1);
                 }
             }
 
@@ -64,8 +64,8 @@ namespace NoZ.PA
             if (ShowBorder || ShowPixels)
             {
                 Handles.color = _color;
-                DrawLines(center, size, 0, 0, _workspace.ImageHeight + 1, _workspace.ImageHeight);
-                DrawLines(center, size, 1, 0, _workspace.ImageWidth + 1, _workspace.ImageWidth);
+                DrawLines(center, size, 0, 0, _canvas.ImageHeight + 1, _canvas.ImageHeight);
+                DrawLines(center, size, 1, 0, _canvas.ImageWidth + 1, _canvas.ImageWidth);
             }
 
             GUI.EndClip();
@@ -81,7 +81,7 @@ namespace NoZ.PA
 
             for (int i = start; i < end; i += increment)
             {
-                var coord1 = center[axis1] - hsize1 + i * _workspace.Zoom;
+                var coord1 = center[axis1] - hsize1 + i * _canvas.Zoom;
                 var from = Vector2.zero;
                 var to = Vector2.zero;
                 from[axis0] = min0;
