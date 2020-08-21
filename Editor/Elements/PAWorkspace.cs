@@ -13,6 +13,8 @@ namespace NoZ.PA
         private ScrollView _scrollView;
         private ColorField _foregroundColor = null;
         private ColorField _backgroundColor = null;
+        private VisualElement _bottomPane = null;
+        private VisualElement _layersPane = null;
         private PAReorderableList _layers = null;
         private PAReorderableList _frames = null;
 
@@ -23,6 +25,8 @@ namespace NoZ.PA
 
         public VisualElement Toolbar { get; private set; }
         public VisualElement Toolbox { get; private set; }
+
+        public PAUndo Undo { get; private set; }
 
         public Vector2 ViewportSize => new Vector2(
             _scrollView.contentViewport.contentRect.width,
@@ -45,6 +49,9 @@ namespace NoZ.PA
         {
             Editor = editor;
 
+
+            Undo = PAUndo.CreateInstance(this);
+
             // Toolbox on left side of top pane
             var toolbox = CreateToolBox();
             Add(toolbox);
@@ -57,14 +64,14 @@ namespace NoZ.PA
             _scrollView.showVertical = true;
             centerPane.Add(_scrollView);
 
-            var bottomPane = new VisualElement { name = "BottomPane" };
-            centerPane.Add(bottomPane);
+            _bottomPane = new VisualElement { name = "BottomPane" };
+            centerPane.Add(_bottomPane);
 
             Canvas = new PACanvas(this) { name = "Canvas" };
             Canvas.ZoomChangedEvent += () => _zoomSlider?.SetValueWithoutNotify(Canvas.Zoom);
             Canvas.ToolChangedEvent += OnToolChanged;
-            Canvas.ForegroundColorChangedEvent += () => _foregroundColor.value = Canvas.ForegroundColor;
-            Canvas.BackgroundColorChangedEvent += () => _backgroundColor.value = Canvas.BackgroundColor;
+            Canvas.ForegroundColorChangedEvent += () => _foregroundColor.SetValueWithoutNotify(Canvas.ForegroundColor);
+            Canvas.BackgroundColorChangedEvent += () => _backgroundColor.SetValueWithoutNotify(Canvas.BackgroundColor);
             Canvas.SelectedLayerChangedEvent += () => _layers.Select(Canvas.SelectedLayer?.Item);
             Canvas.SelectedFrameChangedEvent += () => _frames.Select(Canvas.SelectedFrame?.Item); 
             _scrollView.Add(Canvas);
@@ -79,21 +86,21 @@ namespace NoZ.PA
             var preview = new Image { name = "Preview" };
             previewPane.Add(preview);
 
-            var layersPane = new VisualElement { name = "LayersPane" };
-            rightPane.Add(layersPane);
+            _layersPane = new VisualElement { name = "LayersPane" };
+            rightPane.Add(_layersPane);
 
             var layersToolbar = new VisualElement { name = "LayersToolbar" };
-            layersPane.Add(layersToolbar);
+            _layersPane.Add(layersToolbar);
 
             var toolbarSpacer = new VisualElement();
             toolbarSpacer.AddToClassList("spacer");
 
             layersToolbar.Add(toolbarSpacer);
             layersToolbar.Add(PAUtils.CreateImageButton("LayerAdd.psd", "Create a new layer", AddLayer));
-            layersToolbar.Add(PAUtils.CreateImageButton("Delete.psd", "Delete layer", RemoveLayer));
+            layersToolbar.Add(PAUtils.CreateImageButton("Delete.psd", "Delete layer", DeleteLayer));
 
             var layersScrollView = new ScrollView();
-            layersPane.Add(layersScrollView);
+            _layersPane.Add(layersScrollView);
 
             _layers = new PAReorderableList() { name = "Layers" };
             _layers.onItemMoved += (oldIndex, newIndex) =>
@@ -114,13 +121,13 @@ namespace NoZ.PA
             framesToolbar.Add(toolbarSpacer);
             framesToolbar.Add(PAUtils.CreateImageButton("LayerAdd.psd", "Create a new frame", AddFrame));
             framesToolbar.Add(PAUtils.CreateImageButton("Duplicate.psd", "Duplicate selected frame", DuplicatFrame));
-            framesToolbar.Add(PAUtils.CreateImageButton("Delete.psd", "Delete layer", RemoveFrame));
-            bottomPane.Add(framesToolbar);
+            framesToolbar.Add(PAUtils.CreateImageButton("Delete.psd", "Delete layer", DeleteFrame));
+            _bottomPane.Add(framesToolbar);
 
             var framesScrollView = new ScrollView();
             framesScrollView.showHorizontal = true;
             framesScrollView.showVertical = false;
-            bottomPane.Add(framesScrollView);
+            _bottomPane.Add(framesScrollView);
 
             _frames = new PAReorderableList() { name = "Frames" };
             _frames.direction = ReorderableListDirection.Horizontal;
@@ -133,9 +140,7 @@ namespace NoZ.PA
             };
             _frames.onItemSelected += (i) => Canvas.SelectedFrame = ((PAFrameItem)_frames.ItemAt(i)).Frame;
 
-            framesScrollView.contentContainer.Add(_frames);
-
-            RegisterCallback<KeyDownEvent>(OnKeyDown);
+            framesScrollView.contentContainer.Add(_frames);            
 
             CreateToolbar();            
         }
@@ -150,7 +155,6 @@ namespace NoZ.PA
         /// Convert a viewport position to a canvas position
         /// </summary>
         public Vector2 ViewportToCanvas(Vector2 viewportPosition) => ViewportOffset + viewportPosition;
-
 
         /// <summary>
         /// Open the given pixel art file in the editor
@@ -219,14 +223,20 @@ namespace NoZ.PA
             _foregroundColor = new ColorField();
             _foregroundColor.showEyeDropper = false;
             _foregroundColor.value = Color.white;
-            _foregroundColor.RegisterValueChangedCallback((evt) => { Canvas.ForegroundColor = evt.newValue; });
+            _foregroundColor.RegisterValueChangedCallback((evt) => {
+                Undo.Record("Set Foreground Color");
+                Canvas.ForegroundColor = evt.newValue;
+            });
             Toolbox.Add(_foregroundColor);
 
             // Background color selector
             _backgroundColor = new ColorField();
             _backgroundColor.showEyeDropper = false;
             _backgroundColor.value = Color.white;
-            _backgroundColor.RegisterValueChangedCallback((evt) => { Canvas.BackgroundColor = evt.newValue; });
+            _backgroundColor.RegisterValueChangedCallback((evt) => {
+                Undo.Record("Set Background Color");
+                Canvas.BackgroundColor = evt.newValue; 
+            });
             Toolbox.Add(_backgroundColor);
 
             return Toolbox;
@@ -235,7 +245,7 @@ namespace NoZ.PA
         /// <summary>
         /// Refresh the list of layers
         /// </summary>
-        private void RefreshLayersList()
+        public void RefreshLayersList()
         {
             _layers.RemoveAllItems();
 
@@ -251,7 +261,7 @@ namespace NoZ.PA
         /// <summary>
         /// Refresh the list of frames
         /// </summary>
-        private void RefreshFrameList()
+        public void RefreshFrameList()
         {
             _frames.RemoveAllItems();
 
@@ -264,23 +274,28 @@ namespace NoZ.PA
 
         private void AddLayer()
         {
+            Undo.Record("Add Layer");
             var addedLayer = Canvas.File.AddLayer();
             RefreshLayersList();
             Canvas.SelectedLayer = addedLayer;
+            Canvas.RefreshImage();
         }
 
-        private void RemoveLayer()
+        private void DeleteLayer()
         {
             // Dont allow the last layer to be removed
             if (Canvas.File.layers.Count < 2)
                 return;
 
+            Undo.Record("Delete Layer");
+
             var order = Canvas.SelectedLayer.order;
-            Canvas.File.RemoveLayer(Canvas.SelectedLayer);
+            Canvas.File.DeleteLayer(Canvas.SelectedLayer);
             RefreshLayersList();
-            _layers.Select(Mathf.Min(order, Canvas.File.layers.Count - 1));
+            _layers.Select(Mathf.Clamp(Canvas.File.layers.Count - order - 1, 0, Canvas.File.layers.Count - 1));
 
             Canvas.RefreshImage();
+            Canvas.RefreshFramePreviews();
         }
 
         /// <summary>
@@ -288,6 +303,7 @@ namespace NoZ.PA
         /// </summary>
         private void AddFrame()
         {
+            Undo.Record("Add Frame");
             Canvas.File.AddFrame(Canvas.CurrentAnimation);
             RefreshFrameList();
         }
@@ -299,6 +315,8 @@ namespace NoZ.PA
         {
             if (Canvas.File == null)
                 return;
+
+            Undo.Record("Duplicate Frame");
 
             var frame = Canvas.File.InsertFrame(Canvas.CurrentAnimation, Canvas.SelectedFrame.order + 1);
             Canvas.File.images.AddRange(
@@ -316,79 +334,19 @@ namespace NoZ.PA
         /// <summary>
         /// Remove the selected frame
         /// </summary>
-        private void RemoveFrame()
+        private void DeleteFrame()
         {
             // Dont allow the last layer to be removed
             if (Canvas.File.frames.Count < 2)
                 return;
 
+            Undo.Record("Delete Frame");
+
             var order = Canvas.SelectedFrame.order;
-            Canvas.File.RemoveFrame(Canvas.SelectedFrame);
+            Canvas.File.DeleteFrame(Canvas.SelectedFrame);
             RefreshFrameList();
             _frames.Select(Mathf.Min(order, Canvas.File.frames.Count - 1));
-            Canvas.RefreshImage();
-        }
-
-        private void OnKeyDown(KeyDownEvent evt)
-        {
-            // Send the key to the current tool
-            if (!Canvas.SelectedTool?.OnKeyDown(PAKeyEvent.Create(evt)) ?? true)
-            {
-                evt.StopImmediatePropagation();
-                return;
-            }
-
-            // Handle window level key commands
-            switch (evt.keyCode)
-            {
-                case KeyCode.F:
-                    Canvas.ZoomToFit();
-                    break;
-
-                case KeyCode.A:
-                    // Ctrl+a = select all
-                    if (evt.ctrlKey)
-                    {
-                        Canvas.SelectedTool = Canvas.SelectionTool;
-                        Canvas.SelectionTool.Selection = new RectInt(0, 0, Canvas.ImageWidth, Canvas.ImageHeight);
-                        evt.StopImmediatePropagation();
-                    }
-                    break;
-
-                // Swap foreground and background colors
-                case KeyCode.X:
-                {
-                    var swap = Canvas.ForegroundColor;
-                    Canvas.ForegroundColor = Canvas.BackgroundColor;
-                    Canvas.BackgroundColor = swap;
-                    evt.StopImmediatePropagation();
-                    break;
-                }
-
-                // Change to eyedropper tool
-                case KeyCode.I:
-                    Canvas.SelectedTool = Canvas.EyeDropperTool;
-                    evt.StopImmediatePropagation();
-                    break;
-
-                // Change to eraser tool
-                case KeyCode.E:
-                    Canvas.SelectedTool = Canvas.EraserTool;
-                    evt.StopImmediatePropagation();
-                    break;
-
-                // Change to pencil tool
-                case KeyCode.B:
-                    Canvas.SelectedTool = Canvas.PencilTool;
-                    evt.StopImmediatePropagation();
-                    break;
-
-                // Change to selection tool
-                case KeyCode.M:
-                    Canvas.SelectedTool = Canvas.SelectionTool;
-                    evt.StopImmediatePropagation();
-                    break;
-            }
+            Canvas.RefreshImage();            
         }
 
         /// <summary>
@@ -430,14 +388,14 @@ namespace NoZ.PA
             var framesToggle = new PAImageToggle();
             framesToggle.checkedImage = PAUtils.LoadImage("FramesToggle.psd");
             framesToggle.value = true;
-            framesToggle.onValueChanged = (v) => _frames.parent.visible = v;
+            framesToggle.onValueChanged = (v) => _bottomPane.style.display = new StyleEnum<DisplayStyle>(v ? DisplayStyle.Flex : DisplayStyle.None);
             framesToggle.tooltip = "Toggle Frames";
             Toolbar.Add(framesToggle);
 
             var layerToggle = new PAImageToggle();
             layerToggle.checkedImage = PAUtils.LoadImage("LayerToggle.psd");
             layerToggle.value = true;
-            layerToggle.onValueChanged = (v) => _layers.parent.parent.visible = v;
+            layerToggle.onValueChanged = (v) => _layersPane.style.display = new StyleEnum<DisplayStyle>(v ? DisplayStyle.Flex : DisplayStyle.None);
             layerToggle.tooltip = "Toggle layers";
             Toolbar.Add(layerToggle);
 

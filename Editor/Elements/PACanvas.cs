@@ -141,8 +141,6 @@ namespace NoZ.PA
                 _selectedLayer = value;
 
                 SelectedLayerChangedEvent?.Invoke();
-
-                RefreshImage();
             }
         }
 
@@ -222,9 +220,9 @@ namespace NoZ.PA
                 Size * 0.5f - (Vector2)ImageSize * Zoom * 0.5f,
                 (Vector2)ImageSize * Zoom);
 
-
         public PACanvas(PAWorkspace workspace)
         {
+            focusable = true;
             Workspace = workspace;
 
             RegisterCallback<WheelEvent>(OnWheel);
@@ -234,6 +232,7 @@ namespace NoZ.PA
             RegisterCallback<MouseCaptureOutEvent>(OnMouseCaptureOut);
             RegisterCallback<MouseEnterEvent>(OnMouseEnter);
             RegisterCallback<MouseLeaveEvent>(OnMouseLeave);
+            RegisterCallback<KeyDownEvent>(OnKeyDown);
 
             // Canvas
             _image = new PAImageView(this) { name = "ImageView" };
@@ -267,7 +266,6 @@ namespace NoZ.PA
             Add(_cursorManager);
         }
 
-
         /// <summary>
         /// Refresh the image and optionally and previews of the canvas as well
         /// </summary>
@@ -279,7 +277,7 @@ namespace NoZ.PA
             if (includePreviews)
             {
                 // Update frame preview of selected frame
-                SelectedFrame.Item?.RefreshPreview();
+                SelectedFrame?.Item?.RefreshPreview();
 
                 // Update all layer previews
                 foreach (var layer in File.layers)
@@ -289,6 +287,14 @@ namespace NoZ.PA
             _image.MarkDirtyRepaint();
         }
 
+        /// <summary>
+        /// Refresh all frame previews
+        /// </summary>
+        public void RefreshFramePreviews()
+        {
+            foreach (var frame in File.frames)
+                frame.Item?.RefreshPreview();
+        }
 
         /// <summary>
         /// Helper function to clamp the given image position to the image bounds
@@ -574,10 +580,73 @@ namespace NoZ.PA
                 (Vector2)ImageSize * Zoom + Workspace.ViewportSize);
         }
 
+
+        private void OnKeyDown(KeyDownEvent evt)
+        {
+            // Send the key to the current tool
+            if (!SelectedTool?.OnKeyDown(PAKeyEvent.Create(evt)) ?? true)
+            {
+                evt.StopImmediatePropagation();
+                return;
+            }
+
+            // Handle window level key commands
+            switch (evt.keyCode)
+            {
+                case KeyCode.F:
+                    ZoomToFit();
+                    break;
+
+                case KeyCode.A:
+                    // Ctrl+a = select all
+                    if (evt.ctrlKey)
+                    {
+                        SelectedTool = SelectionTool;
+                        SelectionTool.Selection = new RectInt(0, 0, ImageWidth, ImageHeight);
+                        evt.StopImmediatePropagation();
+                    }
+                    break;
+
+                // Swap foreground and background colors
+                case KeyCode.X:
+                {
+                    var swap = ForegroundColor;
+                    ForegroundColor = BackgroundColor;
+                    BackgroundColor = swap;
+                    evt.StopImmediatePropagation();
+                    break;
+                }
+
+                // Change to eyedropper tool
+                case KeyCode.I:
+                    SelectedTool = EyeDropperTool;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to eraser tool
+                case KeyCode.E:
+                    SelectedTool = EraserTool;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to pencil tool
+                case KeyCode.B:
+                    SelectedTool = PencilTool;
+                    evt.StopImmediatePropagation();
+                    break;
+
+                // Change to selection tool
+                case KeyCode.M:
+                    SelectedTool = SelectionTool;
+                    evt.StopImmediatePropagation();
+                    break;
+            }
+        }
+
         public void OnGUI()
         {
-            //if (Event.current.type == EventType.Layout)
-            //    UpdateSize();
+            if (Event.current.type == EventType.Layout)
+                UpdateSize();
         }
     }
 }

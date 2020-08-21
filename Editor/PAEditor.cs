@@ -14,7 +14,6 @@ namespace NoZ.PA
     {
         private PixelArt _previousTarget = null;
 
-
         public PAWorkspace Workspace { get; private set; }
         public Toolbar Toolbar { get; private set; }
 
@@ -121,8 +120,7 @@ namespace NoZ.PA
 
         private void OnUndoRedo()
         {
-            //_layer.MarkDirtyRepaint();
-            ///CurrentTool.MarkDirtyRepaint();
+            Workspace?.Canvas?.RefreshImage();
         }
 
         /// <summary>

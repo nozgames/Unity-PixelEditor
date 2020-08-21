@@ -110,6 +110,7 @@ namespace NoZ.PA
                     var image = Canvas.File.AddImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
                     if (null != image)
                     {
+                        Undo.RecordObject(image.texture, "Fill Selection");
                         image.texture.FillRect(
                             CanvasToTexture(Selection.Value), 
                             evt.ctrl ? Canvas.BackgroundColor : Canvas.ForegroundColor);
@@ -128,6 +129,7 @@ namespace NoZ.PA
                         var image = Canvas.File.FindImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
                         if (null != image)
                         {
+                            Undo.RecordObject(image.texture, "Clear Selection");
                             image.texture.FillRect(CanvasToTexture(Selection.Value), Color.clear);
                             image.texture.Apply();
                             Canvas.RefreshImage();

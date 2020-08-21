@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace NoZ.PA
@@ -21,6 +22,8 @@ namespace NoZ.PA
 
         private void DrawTo(Vector2Int position)
         {
+            Undo.RecordObject(_target.texture, "Draw");
+
             _drawPosition = _drawPosition ?? position;
 
             position = CanvasToTexture(position);
@@ -44,6 +47,7 @@ namespace NoZ.PA
 
             _drawColor = GetDrawColor(evt.button);
             _target = Canvas.File.AddImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
+
             DrawTo(evt.imagePosition);
         }
 

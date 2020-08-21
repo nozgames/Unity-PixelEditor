@@ -145,7 +145,7 @@ namespace NoZ.PA
         /// <summary>
         /// Remove a frame from the file
         /// </summary>
-        public void RemoveFrame(PAFrame remove)
+        public void DeleteFrame(PAFrame remove)
         {
             // Remove all textures that reference the frame
             images = images.Where(t => t.frame != remove).ToList();
@@ -214,7 +214,7 @@ namespace NoZ.PA
         /// <summary>
         /// Remove a layer from the file
         /// </summary>
-        public void RemoveLayer (PALayer remove)
+        public void DeleteLayer (PALayer remove)
         {
             // Remove all textures that reference the layer
             images = images.Where(t => t.layer != remove).ToList();

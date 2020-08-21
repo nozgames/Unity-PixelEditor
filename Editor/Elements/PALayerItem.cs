@@ -35,6 +35,7 @@ namespace NoZ.PA
 
         private void OnVisibilityChanged(bool value)
         {
+            _canvas.Workspace.Undo.Record("Layer Visibility");
             Layer.visible = value;
             _canvas.RefreshImage();
         }
