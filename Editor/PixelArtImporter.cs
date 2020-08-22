@@ -15,8 +15,16 @@ namespace NoZ.PA
     public class PixelArtImporter : ScriptedImporter
     {
 #if UNITY_EDITOR
-        [MenuItem("Assets/Create/PixelArt")]
-        private static void CreatePixelArt()
+        [MenuItem("Assets/Create/PixelArt/16x16")]
+        private static void CreatePixelArt16x16() => CreatePixelArt(16, 16);
+
+        [MenuItem("Assets/Create/PixelArt/32x32")]
+        private static void CreatePixelArt32x32() => CreatePixelArt(32, 32);
+
+        [MenuItem("Assets/Create/PixelArt/64x64")]
+        private static void CreatePixelArt64x64() => CreatePixelArt(64, 64);
+
+        private static void CreatePixelArt(int width, int height)
         {
             // Generate a unique filename for the new artwork
             var filename = Path.Combine(
@@ -25,8 +33,8 @@ namespace NoZ.PA
 
             // Create an empty file
             var file = new PAFile();
-            file.width = 32;
-            file.height = 32;
+            file.width = width;
+            file.height = height;
             file.AddFrame(file.AddAnimation("New Animation"));
             file.AddLayer();
             file.Save(filename);

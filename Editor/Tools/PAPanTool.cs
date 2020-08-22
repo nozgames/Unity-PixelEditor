@@ -11,7 +11,10 @@ namespace NoZ.PA
         private Vector2 _scrollStart;
         private Vector2 _mouseStart;
 
-        public PAPanTool(PACanvas canvas) : base (canvas) { }
+        public PAPanTool(PACanvas canvas) : base (canvas) 
+        {
+            IsEnabledDuringPlay = true;
+        }
 
         public override void SetCursor(Vector2Int canvasPosition)
         {

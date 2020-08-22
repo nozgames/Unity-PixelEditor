@@ -22,6 +22,11 @@ namespace NoZ.PA
         private VisualElement _playButton = null;
         private PAFrame _playFrame = null;
         private IVisualElementScheduledItem _playingScheduledItem;
+        private VisualElement _addLayerButton = null;
+        private VisualElement _deleteLayerButton = null;
+        private VisualElement _deleteFrameButton = null;
+        private VisualElement _rightPane;
+        private VisualElement _framesToolbar;
 
         public PixelArt Target { get; private set; }
 
@@ -56,6 +61,7 @@ namespace NoZ.PA
         {
             Editor = editor;
 
+            RegisterCallback<KeyDownEvent>(OnKeyDown);
 
             Undo = PAUndo.CreateInstance(this);
 
@@ -91,17 +97,17 @@ namespace NoZ.PA
             _scrollView.Add(Canvas);
 
             // Right pane
-            var rightPane = new VisualElement { name = "RightPane" };
-            Add(rightPane);
+            _rightPane = new VisualElement { name = "RightPane" };
+            Add(_rightPane);
 
             var previewPane = new VisualElement { name = "PreviewPane" };
-            rightPane.Add(previewPane);
+            _rightPane.Add(previewPane);
 
             var preview = new Image { name = "Preview" };
             previewPane.Add(preview);
 
             _layersPane = new VisualElement { name = "LayersPane" };
-            rightPane.Add(_layersPane);
+            _rightPane.Add(_layersPane);
 
             var layersToolbar = new VisualElement { name = "LayersToolbar" };
             _layersPane.Add(layersToolbar);
@@ -110,8 +116,12 @@ namespace NoZ.PA
             toolbarSpacer.AddToClassList("spacer");
 
             layersToolbar.Add(toolbarSpacer);
-            layersToolbar.Add(PAUtils.CreateImageButton("LayerAdd.psd", "Create a new layer", AddLayer));
-            layersToolbar.Add(PAUtils.CreateImageButton("Delete.psd", "Delete layer", DeleteLayer));
+
+            _addLayerButton = PAUtils.CreateIconButton("AddLayerButton", "Add Layer", AddLayer);
+            layersToolbar.Add(_addLayerButton);
+
+            _deleteLayerButton = PAUtils.CreateIconButton("DeleteLayerButton", "Delete Layer", DeleteLayer);
+            layersToolbar.Add(_deleteLayerButton);
 
             var layersScrollView = new ScrollView();
             _layersPane.Add(layersScrollView);
@@ -134,22 +144,26 @@ namespace NoZ.PA
 
             _animations = new ToolbarMenu() { name = "AnimationDropDown" };            
 
-            var framesToolbar = new VisualElement();
-            framesToolbar.name = "FramesToolbar";
-            framesToolbar.Add(_animations);
+            var bottomToolbar = new VisualElement();
+            bottomToolbar.name = "BottomToolbar";
+            bottomToolbar.Add(_animations);
 
-            _animationOptionsButton = PAUtils.CreateImageButton("!d_Settings", "Animation Options", OpenAnimationOptions);
-            framesToolbar.Add(_animationOptionsButton);
+            _animationOptionsButton = PAUtils.CreateIconButton("AnimationOptionsButton", "Animation Options", OpenAnimationOptions);
+            bottomToolbar.Add(_animationOptionsButton);
 
+            _playButton = PAUtils.CreateIconButton("AnimationPlayButton", "Play", OnPlay);
+            bottomToolbar.Add(_playButton);
 
-            _playButton = PAUtils.CreateImageButton("!d_PlayButton", "Play", OnPlay);
-            framesToolbar.Add(_playButton);
+            bottomToolbar.Add(toolbarSpacer);
 
-            framesToolbar.Add(toolbarSpacer);
-            framesToolbar.Add(PAUtils.CreateImageButton("LayerAdd.psd", "Create a new frame", AddFrame));
-            framesToolbar.Add(PAUtils.CreateImageButton("Duplicate.psd", "Duplicate selected frame", DuplicatFrame));
-            framesToolbar.Add(PAUtils.CreateImageButton("Delete.psd", "Delete layer", DeleteFrame));
-            _bottomPane.Add(framesToolbar);
+            _framesToolbar = new VisualElement { name = "FramesToolbar" };
+            bottomToolbar.Add(_framesToolbar);
+            _framesToolbar.Add(PAUtils.CreateIconButton("AddFrameButton", "Create a new frame", AddFrame));
+            _framesToolbar.Add(PAUtils.CreateIconButton("DuplicateFrameButton", "Duplicate selected frame", DuplicatFrame));
+
+            _deleteFrameButton = PAUtils.CreateIconButton("DeleteFrameButton", "Delete layer", DeleteFrame);
+            _framesToolbar.Add(_deleteFrameButton);
+            _bottomPane.Add(bottomToolbar);
 
             var framesScrollView = new ScrollView();
             framesScrollView.showHorizontal = true;
@@ -233,19 +247,23 @@ namespace NoZ.PA
             Toolbox = new VisualElement { name = "Toolbox" };
 
             // Tool buttons
-            var selectionToolButton = PAUtils.CreateImageButton("SelectionTool.psd", "Rectangular Marquee Tool (M)", () => Canvas.SelectedTool = Canvas.SelectionTool);
+            var selectionToolButton = PAUtils.CreateIconToggle("SelectionToolToggle", "Rectangular Marquee Tool (M)", (v) => 
+                { if (v) Canvas.SelectedTool = Canvas.SelectionTool; });
             selectionToolButton.userData = typeof(PASelectionTool);
             Toolbox.Add(selectionToolButton);
 
-            var pencilToolButton = PAUtils.CreateImageButton("PencilTool.psd", "Pencil Tool (B)", () => Canvas.SelectedTool = Canvas.PencilTool);
+            var pencilToolButton = PAUtils.CreateIconToggle("PencilToolToggle", "Pencil Tool (B)", (v) => {
+                if (v) Canvas.SelectedTool = Canvas.PencilTool; });
             pencilToolButton.userData = typeof(PAPencilTool);
             Toolbox.Add(pencilToolButton);
 
-            var eraserToolButton = PAUtils.CreateImageButton("EraserTool.psd", "Eraser Tool (E)", () => Canvas.SelectedTool = Canvas.EraserTool);
+            var eraserToolButton = PAUtils.CreateIconToggle("EraserToolToggle", "Eraser Tool (E)", (v) => {
+                if (v) Canvas.SelectedTool = Canvas.EraserTool;});
             eraserToolButton.userData = typeof(PAEraserTool);
-            Toolbox.Add(eraserToolButton);
+            Toolbox.Add(eraserToolButton);            
 
-            var eyeDropperToolButton = PAUtils.CreateImageButton("EyeDropperTool.psd", "Eyedropper Tool (I)", () => Canvas.SelectedTool = Canvas.EyeDropperTool);
+            var eyeDropperToolButton = PAUtils.CreateIconToggle("EyeDropperToolToggle", "Eyedropper Tool (I)", (v) => {
+                if (v) Canvas.SelectedTool = Canvas.EyeDropperTool; });
             eyeDropperToolButton.userData = typeof(PAEyeDropperTool);
             Toolbox.Add(eyeDropperToolButton);
 
@@ -286,6 +304,8 @@ namespace NoZ.PA
                 _layers.AddItem(new PALayerItem(Canvas, layer));
 
             _layers.Select(0);
+
+            _deleteLayerButton.SetEnabled(_layers.itemCount > 1);
         }
 
         /// <summary>
@@ -300,6 +320,8 @@ namespace NoZ.PA
 
             foreach (var frame in Canvas.File.frames.Where(f => f.animation == Canvas.SelectedAnimation).OrderBy(f => f.order))
                 _frames.AddItem(new PAFrameItem(frame));
+
+            _deleteFrameButton.SetEnabled(_frames.itemCount > 1);
         }
 
         private void AddLayer()
@@ -427,10 +449,9 @@ namespace NoZ.PA
         {
             foreach (var child in Toolbox.Children())
             {
-                if ((Type)child.userData == Canvas.SelectedTool.GetType())
-                    child.AddToClassList("selected");
-                else
-                    child.RemoveFromClassList("selected");
+                var toggle = child as Toggle;
+                if (toggle != null)
+                    toggle.value = (Type)child.userData == Canvas.SelectedTool.GetType();
             }
         }
 
@@ -455,37 +476,25 @@ namespace NoZ.PA
             _zoomSlider.RegisterValueChangedCallback((e) => Canvas.SetZoom(e.newValue, ViewportToCanvas(ViewportSize * 0.5f)));
             Toolbar.Add(_zoomSlider);
 
-            var framesToggle = new PAImageToggle();
-            framesToggle.checkedImage = PAUtils.LoadImage("FramesToggle.psd");
-            framesToggle.value = true;
-            framesToggle.onValueChanged = (v) => _bottomPane.style.display = new StyleEnum<DisplayStyle>(v ? DisplayStyle.Flex : DisplayStyle.None);
-            framesToggle.tooltip = "Toggle Frames";
-            Toolbar.Add(framesToggle);
+            Toolbar.Add(
+                PAUtils.CreateIconToggle("BottomPaneToggle", "Hide/Show animation frame",
+                    (v) => _bottomPane.style.display = new StyleEnum<DisplayStyle>(v ? DisplayStyle.Flex : DisplayStyle.None)));
 
-            var layerToggle = new PAImageToggle();
-            layerToggle.checkedImage = PAUtils.LoadImage("LayerToggle.psd");
-            layerToggle.value = true;
-            layerToggle.onValueChanged = (v) => _layersPane.style.display = new StyleEnum<DisplayStyle>(v ? DisplayStyle.Flex : DisplayStyle.None);
-            layerToggle.tooltip = "Toggle layers";
-            Toolbar.Add(layerToggle);
+            Toolbar.Add(
+                PAUtils.CreateIconToggle("LayerPaneToggle", "Hide/Show layers frame",
+                    (v) => _layersPane.style.display = new StyleEnum<DisplayStyle>(v ? DisplayStyle.Flex : DisplayStyle.None)));
 
-            var gridToggle = new PAImageToggle();
-            gridToggle.checkedImage = PAUtils.LoadImage("GridToggle.psd");
-            gridToggle.value = true;
-            gridToggle.onValueChanged = (v) => Canvas.Grid.ShowPixels = v;
-            gridToggle.tooltip = "Toggle pixel grid";
-            Toolbar.Add(gridToggle);
+            Toolbar.Add(
+                PAUtils.CreateIconToggle("GridToggle", "Hide/Show pixel grid",
+                    (v) => Canvas.Grid.ShowPixels = v));
 
-            var checkerboardToggle = new PAImageToggle();
-            checkerboardToggle.checkedImage = PAUtils.LoadImage("Grid.psd");
-            checkerboardToggle.value = true;
-            checkerboardToggle.onValueChanged = (v) =>
-            {
-                Canvas.ShowCheckerboard = v;
-                Canvas.RefreshImage();
-            };
-            checkerboardToggle.tooltip = "Toggle checkerboard";
-            Toolbar.Add(checkerboardToggle);
+            Toolbar.Add(
+                PAUtils.CreateIconToggle("CheckerBoardToggle", "Hide/Show pixel checkerboard",
+                    (v) =>
+                    {
+                        Canvas.ShowCheckerboard = v;
+                        Canvas.RefreshImage();
+                    }));
 
             // Add the toolbar to the main toolbar
             Editor.Toolbar.Add(Toolbar);
@@ -514,11 +523,36 @@ namespace NoZ.PA
             {
                 _playFrame = Canvas.SelectedFrame;
                 PlayNextFrame();
+
+                _layers.SetEnabled(false);
+                _frames.SetEnabled(false);
+                _layersPane.SetEnabled(false);
+                _framesToolbar.SetEnabled(false);
+                Toolbox.SetEnabled(false);
+                Canvas.RefreshCursor();
             }
             else if (null != _playingScheduledItem)
             {
                 _playingScheduledItem.Pause();
                 Canvas.SelectedFrame = _playFrame;
+
+                _layers.SetEnabled(true);
+                _frames.SetEnabled(true);
+                _layersPane.SetEnabled(true);
+                _framesToolbar.SetEnabled(true);
+                Toolbox.SetEnabled(true);
+                Canvas.RefreshCursor();
+            }
+        }
+
+        private void OnKeyDown(KeyDownEvent evt)
+        {
+            switch(evt.keyCode)
+            {
+                case KeyCode.Space:
+                    OnPlay();
+                    evt.StopImmediatePropagation();
+                    break;
             }
         }
     }

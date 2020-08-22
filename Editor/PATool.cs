@@ -24,6 +24,8 @@ namespace NoZ.PA
             this.StretchToParentSize();
         }
 
+        public bool IsEnabledDuringPlay { get; protected set; }
+
         public bool IsDrawing => Canvas.IsDrawing;
 
         public Vector2Int CanvasToTexture(Vector2Int v) =>

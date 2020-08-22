@@ -30,6 +30,32 @@ namespace NoZ.PA
             AssetDatabase.LoadAssetAtPath<StyleSheet>(
                 $"{PixelArtPackageInfo.assetPackagePath}/Editor Default Resources/uss/{name}.uss");
 
+
+        public static Button CreateIconButton (string name, string tooltip, System.Action clicked)
+        {
+            var button = new Button { name = name };
+            button.tooltip = tooltip;
+            button.clickable.clicked += clicked;
+            button.AddToClassList("iconButton");
+
+            var icon = new VisualElement();
+            icon.AddToClassList("icon");
+            button.Add(icon);
+            
+            return button;
+        }
+
+        public static Toggle CreateIconToggle (string name, string tooltip, System.Action<bool> valueChanged)
+        {
+            var toggle = new Toggle { name = name };
+            toggle.AddToClassList("iconToggle");
+            toggle.value = true;
+            toggle.tooltip = tooltip;
+            toggle.RegisterValueChangedCallback((evt) => valueChanged(evt.newValue));
+
+            return toggle;
+        }
+
         /// <summary>
         /// Create a button that is made up of a single image with no border
         /// </summary>

@@ -354,6 +354,9 @@ namespace NoZ.PA
                 SelectedTool = PanTool;
             }
 
+            if (Workspace.IsPlaying && !(SelectedTool?.IsEnabledDuringPlay ?? false))
+                return;
+
             // Give the tool a chance to handle the mouse down first
             SelectedTool?.OnMouseDown(new PAMouseEvent
             {
@@ -397,6 +400,9 @@ namespace NoZ.PA
         /// </summary>
         private void OnMouseUp(MouseUpEvent evt)
         {
+            if (Workspace.IsPlaying && !(SelectedTool?.IsEnabledDuringPlay ?? false))
+                return;
+
             SelectedTool?.OnMouseUp(PAMouseEvent.Create(this, evt));
 
             // If drawing then end the drawing
@@ -423,6 +429,12 @@ namespace NoZ.PA
         /// </summary>
         private void OnMouseMove(MouseMoveEvent evt)
         {
+            if(Workspace.IsPlaying && !(SelectedTool?.IsEnabledDuringPlay ?? false))
+            {
+                SetCursor(MouseCursor.Arrow);
+                return;
+            }
+
             SelectedTool?.OnMouseMove(PAMouseEvent.Create(this, evt));
 
             _lastMousePosition = evt.localMousePosition;
@@ -497,8 +509,14 @@ namespace NoZ.PA
             _cursorManager.visible = false;
         }
 
-        private void RefreshCursor()
+        public void RefreshCursor()
         {
+            if (Workspace.IsPlaying && !(SelectedTool?.IsEnabledDuringPlay ?? false))
+            {
+                SetCursor(MouseCursor.Arrow);
+                return;
+            }
+
             if (!_cursorManager.visible)
                 return;
 
