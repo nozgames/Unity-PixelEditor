@@ -13,6 +13,7 @@ namespace NoZ.PA
     internal class PAEditor : EditorWindow
     {
         private PixelArt _previousTarget = null;
+        private int _openFileControlId;
 
         public PAWorkspace Workspace { get; private set; }
         public Toolbar Toolbar { get; private set; }
@@ -38,12 +39,26 @@ namespace NoZ.PA
         private void OnGUI()
         {
             Workspace?.OnGUI();
+
+            // Handle object selection
+            if (Event.current.commandName == "ObjectSelectorUpdated")
+            {
+                if(EditorGUIUtility.GetObjectPickerControlID() == _openFileControlId)
+                {
+                    var target = EditorGUIUtility.GetObjectPickerObject() as PixelArt;
+                    if (target != null)
+                        OpenFile(target);
+                    else
+                        CloseFile();
+                }
+                
+            }
+            else if (Event.current.commandName == "ObjectSelectorClosed")
+                _openFileControlId = -1;
         }
 
         public void OnEnable()
-        {
-            Undo.undoRedoPerformed += OnUndoRedo;
-
+        {            
             SetTitle("PixelArt Editor");
 
             // Add style sheet
@@ -54,40 +69,24 @@ namespace NoZ.PA
 
             rootVisualElement.Add(CreateToolbar());
 
-            Workspace = new PAWorkspace (this) { name = "Workspace" };
-            rootVisualElement.Add(Workspace);
-
-            // Load the Saved preferences
-            Workspace.Canvas.ForegroundColor = ColorUtility.TryParseHtmlString(EditorPrefs.GetString("com.noz.pixelart.ForegroundColor"), out var foregroundColor) ?
-                foregroundColor :
-                Color.white;
-            Workspace.Canvas.BackgroundColor = ColorUtility.TryParseHtmlString(EditorPrefs.GetString("com.noz.pixelart.BackgroundColor"), out var backgroundColor) ?
-                backgroundColor :
-                Color.white;
-
             if (_previousTarget != null)
             {
-                Workspace.OpenFile(_previousTarget);
+                OpenFile(_previousTarget);
                 _previousTarget = null;
-            }                
+            }
+
+            Undo.undoRedoPerformed += OnUndoRedo;
+            EditorApplication.quitting += CloseFile;
         }
 
         private void OnDisable()
         {
-            _previousTarget = Workspace.Target;
+            _previousTarget = Workspace?.Target;
 
-            Workspace.CloseFile();
+            CloseFile();
 
             Undo.undoRedoPerformed -= OnUndoRedo;
-
-            // Save the colors
-            EditorPrefs.SetString("com.noz.pixelart.ForegroundColor", $"#{ColorUtility.ToHtmlStringRGBA(Workspace.Canvas.ForegroundColor)}");
-            EditorPrefs.SetString("com.noz.pixelart.BackgroundColor", $"#{ColorUtility.ToHtmlStringRGBA(Workspace.Canvas.BackgroundColor)}");
-        }
-
-        private void OpenFile(PixelArt target)
-        {
-            Workspace.OpenFile(target);
+            EditorApplication.quitting -= CloseFile;
         }
 
         private void OnFocus()
@@ -98,16 +97,63 @@ namespace NoZ.PA
 
         private void Update()
         {
+            if (null == Workspace)
+                return;
+
             // Automatically close the current file if the asset is deleted
             if (Workspace.Target == null && Workspace.Canvas.File != null)
-                Workspace.CloseFile();
-           
+            {
+                CloseFile();
+                return;
+            }
+
             // Handle asset renaming
-            if(Workspace.Target != null && Workspace.Canvas.File != null && Workspace.Target.name != Workspace.Canvas.File.name)
+            if (Workspace.Target != null && Workspace.Canvas.File != null && Workspace.Target.name != Workspace.Canvas.File.name)
             {
                 Workspace.Canvas.File.name = Workspace.Target.name;
                 SetTitle(Workspace.Target.name);
             }
+        }
+
+        private void OpenFile(PixelArt target)
+        {
+            if (Workspace?.Target == target)
+                return;
+
+            if (Workspace != null)
+                CloseFile();
+
+            Workspace = new PAWorkspace(this) { name = "Workspace" };
+            rootVisualElement.Add(Workspace);
+
+            // Load the Saved preferences
+            Workspace.Canvas.ForegroundColor = ColorUtility.TryParseHtmlString(EditorPrefs.GetString("com.noz.pixelart.ForegroundColor"), out var foregroundColor) ?
+                foregroundColor :
+                Color.white;
+            Workspace.Canvas.BackgroundColor = ColorUtility.TryParseHtmlString(EditorPrefs.GetString("com.noz.pixelart.BackgroundColor"), out var backgroundColor) ?
+                backgroundColor :
+                Color.white;
+
+            Workspace.OpenFile(target);
+
+            SetTitle(target.name);
+        }
+
+        private void CloseFile()
+        {
+            if (Workspace == null)
+                return;
+
+            // Save the colors
+            EditorPrefs.SetString("com.noz.pixelart.ForegroundColor", $"#{ColorUtility.ToHtmlStringRGBA(Workspace.Canvas.ForegroundColor)}");
+            EditorPrefs.SetString("com.noz.pixelart.BackgroundColor", $"#{ColorUtility.ToHtmlStringRGBA(Workspace.Canvas.BackgroundColor)}");
+
+            Workspace.CloseFile();
+            rootVisualElement.Remove(Workspace);
+            Workspace = null;
+            SetTitle("PixelArt");
+
+            rootVisualElement.Focus();
         }
 
         /// <summary>
@@ -117,7 +163,6 @@ namespace NoZ.PA
             titleContent = new GUIContent(
                 title,
                 PAUtils.LoadImage("PixelArtEditor.psd"));
-
 
         private void OnUndoRedo()
         {
@@ -133,12 +178,22 @@ namespace NoZ.PA
             Toolbar.pickingMode = PickingMode.Position;
             Toolbar.AddToClassList("toolbar");
 
-            var modeMenu = new ToolbarMenu();
-            modeMenu.text = "Pixel Editor";
-            modeMenu.menu.AppendAction("Pixel Editor", (a) => { }, (a) => DropdownMenuAction.Status.Checked);
-            modeMenu.menu.AppendAction("Bone Editor", (a) => { }, (a) => DropdownMenuAction.Status.Normal);
-            Toolbar.Add(modeMenu);
+            var fileMenu = new ToolbarMenu();
+            fileMenu.text = "File";
+            fileMenu.menu.AppendAction("New...", (a) => { }, (a) => DropdownMenuAction.Status.Normal);
+            fileMenu.menu.AppendAction(
+                "Open...", 
+                (a) => {
+                    _openFileControlId = GUIUtility.GetControlID(FocusType.Passive);
+                    EditorGUIUtility.ShowObjectPicker<PixelArt>(Workspace?.Target, false, null, _openFileControlId);
+                },
+                (a) => DropdownMenuAction.Status.Normal);
 
+            fileMenu.menu.AppendSeparator();
+            fileMenu.menu.AppendAction("Save", (a) => Workspace?.SaveFile(), (a) => Workspace != null ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            fileMenu.menu.AppendAction("Save As...", (a) => { }, (a) => Workspace != null ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            fileMenu.menu.AppendAction("Close", (a) => CloseFile(), (a) => Workspace != null ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            Toolbar.Add(fileMenu);
 
             return Toolbar;
         }

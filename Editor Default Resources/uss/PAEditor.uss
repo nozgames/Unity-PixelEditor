@@ -2,6 +2,24 @@
 {
 	min-width: 200px;
 	margin-bottom:1px;
+	margin-left: -1px;
+}
+
+ToolbarMenu
+{
+	margin-bottom: 1px;
+	padding-left: 10px;
+	padding-right: 10px;	
+}
+
+#Toolbar > ToolbarMenu
+{
+	margin-left: -2px;
+}
+
+#Canvas 
+{
+	background-color: #2A2A2A;
 }
 
 #CenterPane
@@ -79,11 +97,14 @@ ScrollView
 #Frames > #ItemsContainer
 {
 	flex-direction: row;
+	overflow: Visible;
+	flex-shrink: 0;
 }
 
 .frame
 {
 	padding: 4px;
+	height: 72px;
 }
 
 .frame > Image
@@ -92,7 +113,7 @@ ScrollView
 	height: 64px;
 	min-height: 64px;
 	min-width: 64px;
-	background-color: #202020;
+	background-color: #2A2A2A;
 }
 
 #FramesToolbar
@@ -132,7 +153,7 @@ ScrollView
     border-width: 1px;
     border-color: #666666;
     margin-right: 8px;
-    background-color: #202020;
+    background-color: #2A2A2A;
 }
 
 .layer
@@ -195,7 +216,7 @@ ScrollView
 	height: 32px;
 	border-width: 1px;
     border-color: #666666;
-    background-color: #202020;
+    background-color: #2A2A2A;
 	margin: auto;
 }
 
@@ -214,13 +235,18 @@ ScrollView
 	margin-right: 16px;
 }
 
-#Toolbar > .noz-imageToggle-checked
+#Toolbar
+{
+	height: 24px;
+}
+
+#Toolbar > * > .noz-imageToggle-checked
 {
     background-color: #505050;
     border-color: #505050;
 }
 
-#Toolbar > .noz-imageToggle 
+#Toolbar > * > .noz-imageToggle 
 {
     padding: 2px 4px 1px 4px;
     width: 22px;
@@ -233,6 +259,7 @@ ScrollView
 	height: 100%;
 	width: 42px;
 	padding: 4px;
+	padding-top: 16px;
 	border-right-width: 1px;
 	border-color: #232323;
 	overflow: visible;
@@ -278,7 +305,7 @@ ScrollView
 
 #Workspace
 {
-	margin-top: 21px;
+	margin-top: 24px;
 	flex-direction: row;
 	flex-shrink: 0;
 	flex-grow: 0;
@@ -289,13 +316,9 @@ ScrollView
 	position: Absolute;
 }
 
-#Workspace > * > #unity-content-viewport
-{
-	background-color: #313131;
-}
-
 #WorkspaceToolbar
 {
 	flex-direction: row;
+	margin-left: auto;
 }
 

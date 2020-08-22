@@ -119,6 +119,8 @@ namespace NoZ.PA
             _layers = new PAReorderableList() { name = "Layers" };
             _layers.onItemMoved += (oldIndex, newIndex) =>
             {
+                Undo.Record("Reorder Layers");
+
                 for (int itemIndex = 0; itemIndex < _layers.itemCount; itemIndex++)
                     ((PALayerItem)_layers.ItemAt(itemIndex)).Layer.order = _layers.itemCount - itemIndex - 1;
 
@@ -158,8 +160,10 @@ namespace NoZ.PA
             _frames.direction = ReorderableListDirection.Horizontal;
             _frames.onItemMoved += (oldIndex, newIndex) =>
             {
+                Undo.Record("Reorder Frames");
+
                 for (int itemIndex = 0; itemIndex < _frames.itemCount; itemIndex++)
-                    ((PAFrame)_frames.ItemAt(itemIndex).userData).order = itemIndex;
+                    ((PAFrameItem)_frames.ItemAt(itemIndex)).Frame.order = itemIndex;
 
                 Canvas.RefreshImage();
             };
@@ -195,9 +199,7 @@ namespace NoZ.PA
             RefreshLayersList();
             RefreshAnimationList();
 
-            Canvas.ZoomToFit();
-
-            EditorApplication.quitting += CloseFile;
+            Canvas.ZoomToFit();            
         }
 
         public void SaveFile()
@@ -211,6 +213,9 @@ namespace NoZ.PA
 
         public void CloseFile()
         {
+            // Make sure the toolbar gets removed
+            Toolbar.parent.Remove(Toolbar);
+
             // Save existing artwork first
             SaveFile();
 
@@ -219,7 +224,6 @@ namespace NoZ.PA
 
             EditorApplication.quitting -= CloseFile;
         }
-
 
         /// <summary>
         /// Create the toolbox
@@ -434,9 +438,9 @@ namespace NoZ.PA
         {
             Toolbar = new VisualElement { name = "WorkspaceToolbar" };
 
-            var toolbarSpacer = new VisualElement();
-            toolbarSpacer.style.flexGrow = 1.0f;
-            Toolbar.Add(toolbarSpacer);
+            //var toolbarSpacer = new VisualElement();
+            //toolbarSpacer.style.flexGrow = 1.0f;
+            //Toolbar.Add(toolbarSpacer);
 
             var zoomImage = new Image();
             zoomImage.style.width = 16;
@@ -482,11 +486,6 @@ namespace NoZ.PA
             };
             checkerboardToggle.tooltip = "Toggle checkerboard";
             Toolbar.Add(checkerboardToggle);
-
-            var saveButton = new ToolbarButton();
-            saveButton.text = "Save";
-            saveButton.clickable.clicked += SaveFile;
-            Toolbar.Add(saveButton);
 
             // Add the toolbar to the main toolbar
             Editor.Toolbar.Add(Toolbar);
