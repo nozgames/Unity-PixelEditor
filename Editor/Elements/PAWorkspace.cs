@@ -27,6 +27,7 @@ namespace NoZ.PA
         private VisualElement _deleteFrameButton = null;
         private VisualElement _rightPane;
         private VisualElement _framesToolbar;
+        private bool _modified = true;
 
         public PixelArt Target { get; private set; }
 
@@ -39,6 +40,20 @@ namespace NoZ.PA
         public bool IsPlaying { get; private set; }
 
         public PAUndo Undo { get; private set; }
+
+        /// <summary>
+        /// True if the workspace has been modified since being opened or last saved
+        /// </summary>
+        public bool IsModified {
+            get => _modified;
+            set {
+                if (_modified == value)
+                    return;
+
+                _modified = value;
+                Editor.RefreshTitle();
+            }
+        }
 
         public Vector2 ViewportSize => new Vector2(
             _scrollView.contentViewport.contentRect.width,
@@ -189,6 +204,15 @@ namespace NoZ.PA
         }
 
         /// <summary>
+        /// Mark the workspace as being modified
+        /// </summary>
+        internal void SetModified()
+        {
+            IsModified = true;
+            
+        }
+
+        /// <summary>
         /// Convert a canvas position to a viewport position
         /// </summary>
         public Vector2 CanvasToViewport(Vector2 canvasPosition) =>
@@ -213,7 +237,9 @@ namespace NoZ.PA
             RefreshLayersList();
             RefreshAnimationList();
 
-            Canvas.ZoomToFit();            
+            Canvas.ZoomToFit();
+
+            IsModified = false;
         }
 
         public void SaveFile()
@@ -223,6 +249,8 @@ namespace NoZ.PA
 
             Canvas.File.Save(AssetDatabase.GetAssetPath(Target));
             AssetDatabase.Refresh();
+
+            IsModified = false;
         }
 
         public void CloseFile()
@@ -235,6 +263,8 @@ namespace NoZ.PA
 
             Target = null;
             Canvas.File = null;
+
+            IsModified = false;
 
             EditorApplication.quitting -= CloseFile;
         }

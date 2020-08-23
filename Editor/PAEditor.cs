@@ -27,13 +27,13 @@ namespace NoZ.PA
         [UnityEditor.Callbacks.OnOpenAsset(1)]
         public static bool OnOpenAsset(int instanceID, int line)
         {
-            if (Selection.activeObject as PixelArt)
-            {
-                GetWindow<PAEditor>().OpenFile((PixelArt)Selection.activeObject);
-                return true;
-            }
+            var pixelArt = Selection.activeObject as PixelArt;
+            if (null == pixelArt)
+                return false;
 
-            return false;
+            GetWindow<PAEditor>().OpenFile(pixelArt);
+
+            return true;
         }
 
         private void OnGUI()
@@ -58,8 +58,8 @@ namespace NoZ.PA
         }
 
         public void OnEnable()
-        {            
-            SetTitle("PixelArt Editor");
+        {
+            RefreshTitle();
 
             // Add style sheet
             rootVisualElement.AddStyleSheetPath("PAEditor");
@@ -111,7 +111,7 @@ namespace NoZ.PA
             if (Workspace.Target != null && Workspace.Canvas.File != null && Workspace.Target.name != Workspace.Canvas.File.name)
             {
                 Workspace.Canvas.File.name = Workspace.Target.name;
-                SetTitle(Workspace.Target.name);
+                RefreshTitle();
             }
         }
 
@@ -136,7 +136,7 @@ namespace NoZ.PA
 
             Workspace.OpenFile(target);
 
-            SetTitle(target.name);
+            RefreshTitle();
         }
 
         private void CloseFile()
@@ -151,7 +151,7 @@ namespace NoZ.PA
             Workspace.CloseFile();
             rootVisualElement.Remove(Workspace);
             Workspace = null;
-            SetTitle("PixelArt");
+            RefreshTitle();
 
             rootVisualElement.Focus();
         }
@@ -159,10 +159,11 @@ namespace NoZ.PA
         /// <summary>
         /// Set the window title with with the pixel art icon
         /// </summary>
-        private void SetTitle(string title) =>
+        public void RefreshTitle () =>
             titleContent = new GUIContent(
-                title,
+                Workspace == null ? "PixelArt" : $"{Workspace.Target.name}{(Workspace.IsModified ? "*" : "")}",
                 PAUtils.LoadImage("PixelArtEditor.psd"));
+
 
         private void OnUndoRedo()
         {

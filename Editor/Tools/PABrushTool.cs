@@ -22,7 +22,7 @@ namespace NoZ.PA
 
         private void DrawTo(Vector2Int position)
         {
-            Undo.RecordObject(_target.texture, "Draw");
+            Canvas.Workspace.Undo.Record ("Draw", _target.texture);
 
             _drawPosition = _drawPosition ?? position;
 

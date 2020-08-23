@@ -152,7 +152,16 @@ namespace NoZ.PA
             };            
         }
 
-        public void Record (string name) =>
+        public void Record(string name)
+        {
             Undo.RecordObject(this, name);
+            Workspace.SetModified();            
+        }
+
+        public void Record (string name, Texture2D texture)
+        {
+            Undo.RecordObject(texture, name);
+            Workspace.SetModified();
+       }
     }
 }
