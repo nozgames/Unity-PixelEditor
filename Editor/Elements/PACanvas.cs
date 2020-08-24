@@ -298,6 +298,9 @@ namespace NoZ.PA
                 // Update all layer previews
                 foreach (var layer in File.layers)
                     layer.Item?.RefreshPreview(SelectedFrame);
+
+                // Update the preview image as well
+                Workspace.Preview.image = SelectedFrame?.Item.Preview;
             }
 
             _image.MarkDirtyRepaint();

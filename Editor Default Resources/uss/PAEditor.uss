@@ -179,8 +179,8 @@ ScrollView
 
 #Preview
 {
-	width: 32px;
-	height: 32px;
+	width: 200px;
+	height: 200px;
 	border-width: 1px;
     border-color: #666666;
     background-color: #2A2A2A;
@@ -189,7 +189,10 @@ ScrollView
 
 #PreviewPane
 {
-	height: 100px;
+	width: 232px;
+	height: 232px;
+	min-width: 232px;
+	min-height: 232px;
 	border-bottom-width: 1px;
 	border-color: #232323;
 	padding: 16px;

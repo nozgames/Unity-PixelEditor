@@ -36,6 +36,7 @@ namespace NoZ.PA
 
         public VisualElement Toolbar { get; private set; }
         public VisualElement Toolbox { get; private set; }
+        public Image Preview { get; private set; }
 
         public bool IsPlaying { get; private set; }
 
@@ -118,8 +119,8 @@ namespace NoZ.PA
             var previewPane = new VisualElement { name = "PreviewPane" };
             _rightPane.Add(previewPane);
 
-            var preview = new Image { name = "Preview" };
-            previewPane.Add(preview);
+            Preview = new Image { name = "Preview" };
+            previewPane.Add(Preview);
 
             _layersPane = new VisualElement { name = "LayersPane" };
             _rightPane.Add(_layersPane);

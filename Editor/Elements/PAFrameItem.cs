@@ -1,4 +1,5 @@
-﻿using UnityEngine.UIElements;
+﻿using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace NoZ.PA
 {
@@ -6,12 +7,14 @@ namespace NoZ.PA
     {
         private Image _preview = null;
 
+        public Texture2D Preview => (Texture2D)_preview.image;
+
         public PAFrame Frame { get; private set; }
 
         public PAFrameItem(PAFrame frame)
         {
             Frame = frame;
-            Frame.Item = this;
+            Frame.Item = this;            
 
             AddToClassList("frame");
 
