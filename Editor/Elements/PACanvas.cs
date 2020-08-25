@@ -581,14 +581,6 @@ namespace NoZ.PA
 
             UpdateSize();
 
-            // Resize the image view.
-            var imageRect = ImageRect;
-            _image.style.position = _selectionOutlineRenderer.style.position = Position.Absolute;
-            _image.style.left = _selectionOutlineRenderer.style.left = imageRect.xMin;
-            _image.style.top = _selectionOutlineRenderer.style.top = imageRect.yMin;
-            _image.style.width = _selectionOutlineRenderer.style.width = (int)imageRect.width;
-            _image.style.height = _selectionOutlineRenderer.style.height = (int)imageRect.height;
-
             // Position the cursor over the same pixel in the canvas that it was over before the zoom
             var newCanvasSize = Size;
             var viewPosition = Workspace.CanvasToViewport(referencePosition);
@@ -647,6 +639,14 @@ namespace NoZ.PA
             Size = Vector2.Max(
                 Workspace.ViewportSize * 2.0f - (Vector2)ImageSize * Zoom,
                 (Vector2)ImageSize * Zoom + Workspace.ViewportSize);
+
+            // Resize the image view.
+            var imageRect = ImageRect;
+            _image.style.position = _selectionOutlineRenderer.style.position = Position.Absolute;
+            _image.style.left = _selectionOutlineRenderer.style.left = imageRect.xMin;
+            _image.style.top = _selectionOutlineRenderer.style.top = imageRect.yMin;
+            _image.style.width = _selectionOutlineRenderer.style.width = (int)imageRect.width;
+            _image.style.height = _selectionOutlineRenderer.style.height = (int)imageRect.height;
         }
 
 
