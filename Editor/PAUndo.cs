@@ -118,9 +118,9 @@ namespace NoZ.PA
             Workspace.RefreshFrameList();
             Workspace.RefreshAnimationList();
 
-            Workspace.Canvas.SelectedAnimation = Workspace.Canvas.File.FindAnimation(serialized.selectedAnimation);
-            Workspace.Canvas.SelectedLayer = Workspace.Canvas.File.FindLayer(serialized.selectedLayer);
-            Workspace.Canvas.SelectedFrame = Workspace.Canvas.File.FindFrame(serialized.selectedFrame);
+            Workspace.Canvas.ActiveAnimation = Workspace.Canvas.File.FindAnimation(serialized.selectedAnimation);
+            Workspace.Canvas.ActiveLayer = Workspace.Canvas.File.FindLayer(serialized.selectedLayer);
+            Workspace.Canvas.ActiveFrame = Workspace.Canvas.File.FindFrame(serialized.selectedFrame);
 
             Workspace.Canvas.RefreshImage();
 
@@ -142,9 +142,9 @@ namespace NoZ.PA
             {
                 foregroundColor = Workspace.Canvas.ForegroundColor,
                 backgroundColor = Workspace.Canvas.BackgroundColor,
-                selectedFrame = Workspace.Canvas.SelectedFrame.id,
-                selectedLayer = Workspace.Canvas.SelectedLayer.id,
-                selectedAnimation = Workspace.Canvas.SelectedAnimation.id,
+                selectedFrame = Workspace.Canvas.ActiveFrame.id,
+                selectedLayer = Workspace.Canvas.ActiveLayer.id,
+                selectedAnimation = Workspace.Canvas.ActiveAnimation.id,
                 animations = Workspace.Canvas.File.animations.Select(a => new SerializedAnimation { id = a.id, name = a.name }).ToArray(),
                 frames = Workspace.Canvas.File.frames.Select(f => new SerializedFrame { id = f.id, order = f.order, animation = f.animation.id }).ToArray(),
                 layers = Workspace.Canvas.File.layers.Select(l => new SerializedLayer { id = l.id, name = l.name, opacity = l.opacity, order = l.order, visible = l.visible }).ToArray(),

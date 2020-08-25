@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -12,9 +13,9 @@ namespace NoZ.PA
         private const float ZoomIncrementUp = 1.1f;
         private const float ZoomIncrementDown = 1.0f / ZoomIncrementUp;
 
-        private PAAnimation _selectedAnimation;
-        private PALayer _selectedLayer;
-        private PAFrame _selectedFrame;
+        private PAAnimation _activeAnimation;
+        private PALayer _activeLayer;
+        private PAFrame _activeFrame;
         private Color _foregroundColor;
         private Color _backgroundColor;
         private PAFile _file;
@@ -23,17 +24,23 @@ namespace NoZ.PA
         private Vector2 _drawLast;
         private Vector2 _lastMousePosition;
         private PATool _previousTool;
-        private PATool _selectedTool;
+        private PATool _activeTool;
         private PACursorManager _cursorManager;
         private PAImageView _image;
+        private PASelectionOutline _selectionOutlineRenderer;
 
         public event Action ZoomChangedEvent;
-        public event Action ToolChangedEvent;
-        public event Action SelectedAnimationChangedEvent;
-        public event Action SelectedLayerChangedEvent;
-        public event Action SelectedFrameChangedEvent;
+        public event Action ActiveToolChangedEvent;
+        public event Action ActiveAnimationChangedEvent;
+        public event Action ActiveLayerChangedEvent;
+        public event Action ActiveFrameChangedEvent;
         public event Action ForegroundColorChangedEvent;
         public event Action BackgroundColorChangedEvent;
+
+        public Texture2D SelectionMask { get; private set; }
+        public RectInt SelectionBounds { get; private set; }
+        public bool HasSelection { get; private set; }
+        public Vector3[] SelectionOutline { get; private set; }
 
         public PAGrid Grid { get; private set; }
         public PAEyeDropperTool EyeDropperTool { get; private set; }
@@ -54,14 +61,18 @@ namespace NoZ.PA
 
                 if(_file != null)
                 {
-                    SelectedAnimation = _file.animations[0];
-                    SelectedFrame = _file.frames[0];
-                    SelectedLayer = _file.layers[0];
+                    HasSelection = false;
+                    SelectionMask = new Texture2D(_file.width, _file.height, TextureFormat.RGBA32, false);
+                    SelectionOutline = null;
+
+                    ActiveAnimation = _file.animations[0];
+                    ActiveFrame = _file.frames[0];
+                    ActiveLayer = _file.layers[0];
                 }
                 else
                 {
-                    SelectedFrame = null;
-                    SelectedLayer = null;
+                    ActiveFrame = null;
+                    ActiveLayer = null;
                 }
             }
         }
@@ -94,15 +105,15 @@ namespace NoZ.PA
         /// <summary>
         /// Set/Get teh selected animation
         /// </summary>
-        public PAAnimation SelectedAnimation {
-            get => _selectedAnimation;
+        public PAAnimation ActiveAnimation {
+            get => _activeAnimation;
             set {
-                if (value == _selectedAnimation)
+                if (value == _activeAnimation)
                     return;
 
-                _selectedAnimation = value;
+                _activeAnimation = value;
 
-                SelectedAnimationChangedEvent?.Invoke();
+                ActiveAnimationChangedEvent?.Invoke();
             }
         } 
 
@@ -117,29 +128,29 @@ namespace NoZ.PA
         /// <summary>
         /// Current selected tool
         /// </summary>
-        public PATool SelectedTool {
-            get => _selectedTool;
+        public PATool ActiveTool {
+            get => _activeTool;
             set {
-                if (_selectedTool == value)
+                if (_activeTool == value)
                     return;
 
-                _previousTool = _selectedTool;
+                _previousTool = _activeTool;
 
-                if (_selectedTool != null)
+                if (_activeTool != null)
                 {
-                    _selectedTool.visible = false;
-                    _selectedTool.OnDisable();
+                    _activeTool.visible = false;
+                    _activeTool.OnDisable();
                 }
 
-                _selectedTool = value;
-                if (_selectedTool != null)
+                _activeTool = value;
+                if (_activeTool != null)
                 {
-                    _selectedTool.visible = true;
-                    _selectedTool.OnEnable();
-                    _selectedTool.MarkDirtyRepaint();
+                    _activeTool.visible = true;
+                    _activeTool.OnEnable();
+                    _activeTool.MarkDirtyRepaint();
                 }
 
-                ToolChangedEvent?.Invoke();
+                ActiveToolChangedEvent?.Invoke();
 
                 RefreshCursor();
             }
@@ -148,30 +159,30 @@ namespace NoZ.PA
         /// <summary>
         /// Layer that is currently selected in the workspace
         /// </summary>
-        public PALayer SelectedLayer {
-            get => _selectedLayer;
+        public PALayer ActiveLayer {
+            get => _activeLayer;
             set {
-                if (_selectedLayer == value)
+                if (_activeLayer == value)
                     return;
 
-                _selectedLayer = value;
+                _activeLayer = value;
 
-                SelectedLayerChangedEvent?.Invoke();
+                ActiveLayerChangedEvent?.Invoke();
             }
         }
 
         /// <summary>
         /// Frame that is currently selected in the workspace
         /// </summary>
-        public PAFrame SelectedFrame {
-            get => _selectedFrame;
+        public PAFrame ActiveFrame {
+            get => _activeFrame;
             set {
-                if (value == _selectedFrame)
+                if (value == _activeFrame)
                     return;
 
-                _selectedFrame = value;
+                _activeFrame = value;
 
-                SelectedFrameChangedEvent?.Invoke();
+                ActiveFrameChangedEvent?.Invoke();
 
                 RefreshImage();
             }
@@ -233,7 +244,7 @@ namespace NoZ.PA
         /// </summary>
         public Rect ImageRect =>
             new Rect(
-                Size * 0.5f - (Vector2)ImageSize * Zoom * 0.5f,
+                (Size - (Vector2)ImageSize * Zoom) * 0.5f,
                 (Vector2)ImageSize * Zoom);
 
         public PACanvas(PAWorkspace workspace)
@@ -258,6 +269,9 @@ namespace NoZ.PA
             // Pixel grid
             Grid = new PAGrid(this);
             Add(Grid);
+
+            _selectionOutlineRenderer = new PASelectionOutline(this) {name= "SelectionOutline"};
+            Add(_selectionOutlineRenderer);
 
             // Create the tools
             PencilTool = new PAPencilTool(this);
@@ -293,14 +307,14 @@ namespace NoZ.PA
             if (includePreviews)
             {
                 // Update frame preview of selected frame
-                SelectedFrame?.Item?.RefreshPreview();
+                ActiveFrame?.Item?.RefreshPreview();
 
                 // Update all layer previews
                 foreach (var layer in File.layers)
-                    layer.Item?.RefreshPreview(SelectedFrame);
+                    layer.Item?.RefreshPreview(ActiveFrame);
 
                 // Update the preview image as well
-                Workspace.Preview.image = SelectedFrame?.Item.Preview;
+                Workspace.Preview.image = ActiveFrame?.Item.Preview;
             }
 
             _image.MarkDirtyRepaint();
@@ -330,6 +344,19 @@ namespace NoZ.PA
             ImageRect.min + (Vector2)imagePosition * Zoom;
 
         /// <summary>
+        /// Convert the image coordinate to a texture coordinate
+        /// </summary>
+        public Vector2Int ImageToTexture(Vector2Int v) =>
+            new Vector2Int(v.x, ImageHeight - 1 - v.y);
+
+        public RectInt ImageToTexture(RectInt r) =>
+            new RectInt(r.xMin, ImageHeight - r.yMin - r.height, r.width, r.height);
+
+        public Vector3 TextureToImage(Vector3 v) => new Vector3(v.x, ImageHeight - v.y, v.z);
+        public Vector2Int TextureToImage(Vector2Int v) => ImageToTexture(v);
+        public RectInt TextureToImage(RectInt r) => ImageToTexture(r);
+
+        /// <summary>
         /// Convert a coordinate from the workspace to the canvas.  Note that this 
         /// coordinate is not clamped to the canvas, use ClampCanvasPosition to do so.
         /// </summary>
@@ -353,15 +380,15 @@ namespace NoZ.PA
             // Middle button is pan tool
             if ((MouseButton)evt.button == MouseButton.MiddleMouse)
             {
-                _previousTool = SelectedTool;
-                SelectedTool = PanTool;
+                _previousTool = ActiveTool;
+                ActiveTool = PanTool;
             }
 
-            if (Workspace.IsPlaying && !(SelectedTool?.IsEnabledDuringPlay ?? false))
+            if (Workspace.IsPlaying && !(ActiveTool?.IsEnabledDuringPlay ?? false))
                 return;
 
             // Give the tool a chance to handle the mouse down first
-            SelectedTool?.OnMouseDown(new PAMouseEvent
+            ActiveTool?.OnMouseDown(new PAMouseEvent
             {
                 button = (MouseButton)evt.button,
                 alt = evt.altKey,
@@ -382,10 +409,10 @@ namespace NoZ.PA
             _drawStart = evt.localMousePosition;
             _drawLast = _drawStart;
 
-            if (SelectedTool.DrawThreshold <= 0.0f)
+            if (ActiveTool.DrawThreshold <= 0.0f)
             {
                 IsDrawing = true;
-                SelectedTool?.OnDrawStart(new PADrawEvent
+                ActiveTool?.OnDrawStart(new PADrawEvent
                 {
                     start = _drawStart,
                     button = (MouseButton)_drawButton,
@@ -403,22 +430,22 @@ namespace NoZ.PA
         /// </summary>
         private void OnMouseUp(MouseUpEvent evt)
         {
-            if (Workspace.IsPlaying && !(SelectedTool?.IsEnabledDuringPlay ?? false))
+            if (Workspace.IsPlaying && !(ActiveTool?.IsEnabledDuringPlay ?? false))
                 return;
 
-            SelectedTool?.OnMouseUp(PAMouseEvent.Create(this, evt));
+            ActiveTool?.OnMouseUp(PAMouseEvent.Create(this, evt));
 
             // If drawing then end the drawing
             if (IsDrawing)
             {
-                SelectedTool?.OnDrawEnd(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart), false);
+                ActiveTool?.OnDrawEnd(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart), false);
 
                 _drawButton = -1;
                 IsDrawing = false;
 
                 // If middle button pan was active then return to the previous tool
-                if ((MouseButton)evt.button == MouseButton.MiddleMouse && SelectedTool == PanTool)
-                    SelectedTool = _previousTool;
+                if ((MouseButton)evt.button == MouseButton.MiddleMouse && ActiveTool == PanTool)
+                    ActiveTool = _previousTool;
             }
 
             // Release the mouse capture
@@ -432,13 +459,13 @@ namespace NoZ.PA
         /// </summary>
         private void OnMouseMove(MouseMoveEvent evt)
         {
-            if(Workspace.IsPlaying && !(SelectedTool?.IsEnabledDuringPlay ?? false))
+            if(Workspace.IsPlaying && !(ActiveTool?.IsEnabledDuringPlay ?? false))
             {
                 SetCursor(MouseCursor.Arrow);
                 return;
             }
 
-            SelectedTool?.OnMouseMove(PAMouseEvent.Create(this, evt));
+            ActiveTool?.OnMouseMove(PAMouseEvent.Create(this, evt));
 
             _lastMousePosition = evt.localMousePosition;
             var canvasPosition = CanvasToImage(evt.localMousePosition);
@@ -447,15 +474,15 @@ namespace NoZ.PA
             {
                 _drawLast = evt.localMousePosition;
 
-                SelectedTool?.OnDrawContinue(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
+                ActiveTool?.OnDrawContinue(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
             }
-            else if (_drawButton != -1 && (evt.localMousePosition - _drawStart).magnitude >= SelectedTool.DrawThreshold)
+            else if (_drawButton != -1 && (evt.localMousePosition - _drawStart).magnitude >= ActiveTool.DrawThreshold)
             {
                 IsDrawing = true;
-                SelectedTool?.OnDrawStart(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
+                ActiveTool?.OnDrawStart(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
             }
 
-            SelectedTool?.SetCursor(canvasPosition);
+            ActiveTool?.SetCursor(canvasPosition);
         }
 
         /// <summary>
@@ -467,10 +494,10 @@ namespace NoZ.PA
             if (IsDrawing)
             {
                 // If middle button pan was active then return to the previous tool
-                if ((MouseButton)_drawButton == MouseButton.MiddleMouse && SelectedTool == PanTool)
-                    SelectedTool = _previousTool;
+                if ((MouseButton)_drawButton == MouseButton.MiddleMouse && ActiveTool == PanTool)
+                    ActiveTool = _previousTool;
 
-                SelectedTool?.OnDrawEnd(new PADrawEvent
+                ActiveTool?.OnDrawEnd(new PADrawEvent
                 {
                     button = (MouseButton)_drawButton,
                     alt = false,
@@ -514,7 +541,7 @@ namespace NoZ.PA
 
         public void RefreshCursor()
         {
-            if (Workspace.IsPlaying && !(SelectedTool?.IsEnabledDuringPlay ?? false))
+            if (Workspace.IsPlaying && !(ActiveTool?.IsEnabledDuringPlay ?? false))
             {
                 SetCursor(MouseCursor.Arrow);
                 return;
@@ -523,13 +550,13 @@ namespace NoZ.PA
             if (!_cursorManager.visible)
                 return;
 
-            if (SelectedTool == null)
+            if (ActiveTool == null)
                 return;
 
             if (MouseCaptureController.IsMouseCaptured() && !MouseCaptureController.HasMouseCapture(this))
                 return;
 
-            SelectedTool.SetCursor(CanvasToImage(_lastMousePosition));
+            ActiveTool.SetCursor(CanvasToImage(_lastMousePosition));
             _cursorManager.Refresh();
         }
 
@@ -552,11 +579,15 @@ namespace NoZ.PA
             var oldImageSize = (Vector2)ImageSize * oldzoom;
             var referenceImageSize = (referencePosition - (oldWorkspaceSize - oldImageSize) * 0.5f) / oldImageSize;
 
-            // Resize the image view.
-            _image.style.width = (int)(ImageWidth * Zoom);
-            _image.style.height = (int)(ImageHeight * Zoom);
-
             UpdateSize();
+
+            // Resize the image view.
+            var imageRect = ImageRect;
+            _image.style.position = _selectionOutlineRenderer.style.position = Position.Absolute;
+            _image.style.left = _selectionOutlineRenderer.style.left = imageRect.xMin;
+            _image.style.top = _selectionOutlineRenderer.style.top = imageRect.yMin;
+            _image.style.width = _selectionOutlineRenderer.style.width = (int)imageRect.width;
+            _image.style.height = _selectionOutlineRenderer.style.height = (int)imageRect.height;
 
             // Position the cursor over the same pixel in the canvas that it was over before the zoom
             var newCanvasSize = Size;
@@ -568,8 +599,9 @@ namespace NoZ.PA
             ZoomChangedEvent?.Invoke();
 
             RefreshImage();
-            SelectedTool.MarkDirtyRepaint();
+            ActiveTool.MarkDirtyRepaint();
             RefreshCursor();
+            _selectionOutlineRenderer.MarkDirtyRepaint();
 
             return referencePosition;
         }
@@ -621,7 +653,7 @@ namespace NoZ.PA
         private void OnKeyDown(KeyDownEvent evt)
         {
             // Send the key to the current tool
-            if (!SelectedTool?.OnKeyDown(PAKeyEvent.Create(evt)) ?? true)
+            if (!ActiveTool?.OnKeyDown(PAKeyEvent.Create(evt)) ?? true)
             {
                 evt.StopImmediatePropagation();
                 return;
@@ -630,6 +662,42 @@ namespace NoZ.PA
             // Handle window level key commands
             switch (evt.keyCode)
             {
+                // Delete pixels in selection
+                case KeyCode.Delete:
+                {
+                    if (!HasSelection || !ActiveLayer.visible)
+                        break;
+
+                    var image = File.FindImage(ActiveFrame, ActiveLayer);
+                    if (image == null)
+                        break;
+
+                    Workspace.Undo.Record("Clear Selection", image.texture);
+                    image.texture.Clear(Color.clear, SelectionMask);
+                    image.texture.Apply();
+                    RefreshImage();
+                    evt.StopImmediatePropagation();
+                    break;
+                }
+
+                // Fill selection with color
+                case KeyCode.Backspace:
+                {
+                    if (!HasSelection || !ActiveLayer.visible)
+                        break;
+
+                    var image = File.AddImage(ActiveFrame, ActiveLayer);
+                    if (null == image)
+                        break;
+
+                    Workspace.Undo.Record("Fill Selection", image.texture);
+                    image.texture.Clear(evt.ctrlKey ? BackgroundColor : ForegroundColor, SelectionMask);
+                    image.texture.Apply();
+                    RefreshImage();
+                    evt.StopImmediatePropagation();
+                    break;
+                }
+
                 case KeyCode.F:
                     ZoomToFit();
                     break;
@@ -638,8 +706,16 @@ namespace NoZ.PA
                     // Ctrl+a = select all
                     if (evt.ctrlKey)
                     {
-                        SelectedTool = SelectionTool;
-                        SelectionTool.Selection = new RectInt(0, 0, ImageWidth, ImageHeight);
+                        SelectAll();
+                        evt.StopImmediatePropagation();
+                    }
+                    break;
+
+                case KeyCode.D:
+                    // Ctrl+c = deselect
+                    if (evt.ctrlKey)
+                    {
+                        ClearSelection();
                         evt.StopImmediatePropagation();
                     }
                     break;
@@ -656,25 +732,29 @@ namespace NoZ.PA
 
                 // Change to eyedropper tool
                 case KeyCode.I:
-                    SelectedTool = EyeDropperTool;
+                    if(evt.ctrlKey && evt.shiftKey)
+                        SelectInverse();
+                    else
+                        ActiveTool = EyeDropperTool;
+
                     evt.StopImmediatePropagation();
                     break;
 
                 // Change to eraser tool
                 case KeyCode.E:
-                    SelectedTool = EraserTool;
+                    ActiveTool = EraserTool;
                     evt.StopImmediatePropagation();
                     break;
 
                 // Change to pencil tool
                 case KeyCode.B:
-                    SelectedTool = PencilTool;
+                    ActiveTool = PencilTool;
                     evt.StopImmediatePropagation();
                     break;
 
                 // Change to selection tool
                 case KeyCode.M:
-                    SelectedTool = SelectionTool;
+                    ActiveTool = SelectionTool;
                     evt.StopImmediatePropagation();
                     break;
             }
@@ -684,6 +764,70 @@ namespace NoZ.PA
         {
             if (Event.current.type == EventType.Layout)
                 UpdateSize();
+        }
+
+        public void ClearSelection ()
+        {
+            HasSelection = false;
+            SelectionOutline = null;
+            _selectionOutlineRenderer.MarkDirtyRepaint();
+        }
+
+        public void SelectAll ()
+        {
+            SelectionMask.Clear(Color.white);
+            ApplySelectionMask();
+        }
+
+        public void SelectInverse()
+        {
+            for(int y=0; y < SelectionMask.height; y++)
+                for (int x = 0; x < SelectionMask.width; x++)
+                {
+                    var c = SelectionMask.GetPixel(x, y);
+                    SelectionMask.SetPixel(x, y, c.a == 0 ? Color.white : Color.clear);
+                }
+
+            ApplySelectionMask();
+        }
+
+        /// <summary>
+        /// Set the selection to a rectangle
+        /// </summary>
+        public void SetSelection (RectInt rect)
+        {
+            if(rect.size.x == 0 || rect.size.y == 0)
+            {
+                HasSelection = false;
+                return;
+            }
+
+            SelectionMask.Clear(Color.clear);
+            SelectionMask.FillRect(ImageToTexture(rect), Color.white);
+            SelectionMask.Apply();
+
+            ApplySelectionMask();
+        }        
+
+        /// <summary>
+        /// Apply any modifications made to the selection mask
+        /// </summary>
+        public void ApplySelectionMask()
+        {
+            SelectionMask.Apply();
+            HasSelection = SelectionMask.TryGetContentRect(out var bounds);
+            if (HasSelection)
+            {
+                SelectionBounds = ImageToTexture(bounds);
+                SelectionOutline = SelectionMask.GetContentOutline();
+
+                for (int i = 0; i < SelectionOutline.Length; i++)
+                    SelectionOutline[i] = TextureToImage(SelectionOutline[i]);
+            }
+            else
+                SelectionOutline = null;
+
+            _selectionOutlineRenderer.MarkDirtyRepaint();
         }
     }
 }

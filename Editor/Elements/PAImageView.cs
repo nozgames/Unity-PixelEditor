@@ -69,7 +69,7 @@ namespace NoZ.PA
                 return;
 
             // Draw each layer
-            foreach (var petexture in _canvas.File.images.Where(t => t.frame == _canvas.SelectedFrame).OrderBy(t => t.layer.order))
+            foreach (var petexture in _canvas.File.images.Where(t => t.frame == _canvas.ActiveFrame).OrderBy(t => t.layer.order))
             {
                 if (!petexture.layer.visible)
                     continue;

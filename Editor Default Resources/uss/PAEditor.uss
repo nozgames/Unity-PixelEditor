@@ -34,10 +34,6 @@ ScrollView
 	margin-bottom: 4px;
 }
 
-#ImageView {
-    margin: auto;
-}
-
 #BottomPane 
 {
 	border-top-width: 1px;

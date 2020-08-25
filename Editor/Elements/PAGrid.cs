@@ -24,6 +24,7 @@ namespace NoZ.PA
         public PAGrid(PACanvas canvas)
         {
             _canvas = canvas;
+            pickingMode = PickingMode.Ignore;
 
             AddToClassList("pixelGrid");
 

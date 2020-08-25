@@ -22,20 +22,25 @@ namespace NoZ.PA
 
         private void DrawTo(Vector2Int position)
         {
+            if (Canvas.ActiveLayer.visible == false)
+                return;
+
             Canvas.Workspace.Undo.Record ("Draw", _target.texture);
 
             _drawPosition = _drawPosition ?? position;
 
             position = CanvasToTexture(position);
 
-            if (_drawPosition == position)
-                _target.texture.SetPixelClamped(position, _drawColor);
-            else
-                _target.texture.DrawLine(_drawPosition.Value, position, _drawColor);
+            var mask = Canvas.HasSelection ? Canvas.SelectionMask : null;
 
-            _drawPosition = position;
+            if (_drawPosition == position)
+                _target.texture.SetPixelClamped(position, _drawColor, mask);
+            else
+                _target.texture.DrawLine(_drawPosition.Value, position, _drawColor, mask);
 
             _target.texture.Apply();
+
+            _drawPosition = position;
 
             Canvas.RefreshImage(false);
         }
@@ -46,7 +51,7 @@ namespace NoZ.PA
                 _drawPosition = CanvasToTexture(evt.imagePosition);
 
             _drawColor = GetDrawColor(evt.button);
-            _target = Canvas.File.AddImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
+            _target = Canvas.File.AddImage(Canvas.ActiveFrame, Canvas.ActiveLayer);
 
             DrawTo(evt.imagePosition);
         }

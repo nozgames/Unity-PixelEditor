@@ -50,6 +50,14 @@ namespace NoZ.PA
             MarkDirtyRepaint();
         }
 
+        public override void OnMouseUp(PAMouseEvent evt)
+        {
+            if (evt.button == UnityEngine.UIElements.MouseButton.LeftMouse && Selection == null)
+                Canvas.ClearSelection();
+
+            base.OnMouseUp(evt);
+        }
+
         public override void OnDrawStart(PADrawEvent evt)
         {
             _pivot = Canvas.ClampImagePosition(evt.imagePosition);
@@ -68,12 +76,32 @@ namespace NoZ.PA
         public override void OnDrawEnd(PADrawEvent evt, bool cancelled)
         {
             base.OnDrawEnd(evt, cancelled);
+            if (Selection != null)
+            {
+                var textureRect = Canvas.ImageToTexture(Selection.Value);
+                if(evt.shift && evt.alt)
+                    Canvas.SelectionMask.FillRect(textureRect, Color.clear);
+                else
+                {
+                    if(!evt.shift)
+                        Canvas.SelectionMask.Clear(Color.clear);
+                    
+                    Canvas.SelectionMask.FillRect(textureRect, Color.white);
+                }
+
+                Canvas.ApplySelectionMask();
+            }
+            else
+                Canvas.ClearSelection();
             MarkDirtyRepaint();
         }
 
         protected override void OnRepaint() 
         {
             if (null == Selection)
+                return;
+
+            if (!IsDrawing)
                 return;
 
             var min = Canvas.ImageToCanvas(Selection.Value.min);
@@ -97,51 +125,5 @@ namespace NoZ.PA
         {
             Canvas.SetCursor(_cursor, _cursorHotspot);
         }
-
-        public override bool OnKeyDown(PAKeyEvent evt)
-        {
-            switch (evt.keyCode)
-            {
-                case KeyCode.Backspace:
-                { 
-                    if (Selection == null)
-                        break;
-
-                    var image = Canvas.File.AddImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
-                    if (null != image)
-                    {
-                        Canvas.Workspace.Undo.Record("Fill Selection", image.texture);
-                        image.texture.FillRect(
-                            CanvasToTexture(Selection.Value), 
-                            evt.ctrl ? Canvas.BackgroundColor : Canvas.ForegroundColor);
-
-                        image.texture.Apply();
-                        Canvas.RefreshImage();
-                    }
-
-                    return false;
-                }
-
-                case KeyCode.Delete:
-                {
-                    if (Selection != null)
-                    {
-                        var image = Canvas.File.FindImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
-                        if (null != image)
-                        {
-                            Canvas.Workspace.Undo.Record("Clear Selection", image.texture);
-                            image.texture.FillRect(CanvasToTexture(Selection.Value), Color.clear);
-                            image.texture.Apply();
-                            Canvas.RefreshImage();
-                            return false;
-                        }
-                    }
-                    break;
-                }
-            }
-
-            return base.OnKeyDown(evt);
-        }
-
     }
 }

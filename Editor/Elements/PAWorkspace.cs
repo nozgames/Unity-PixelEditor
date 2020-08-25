@@ -98,12 +98,12 @@ namespace NoZ.PA
 
             Canvas = new PACanvas(this) { name = "Canvas" };
             Canvas.ZoomChangedEvent += () => _zoomSlider?.SetValueWithoutNotify(Canvas.Zoom);
-            Canvas.ToolChangedEvent += OnToolChanged;
+            Canvas.ActiveToolChangedEvent += OnToolChanged;
             Canvas.ForegroundColorChangedEvent += () => _foregroundColor.SetValueWithoutNotify(Canvas.ForegroundColor);
             Canvas.BackgroundColorChangedEvent += () => _backgroundColor.SetValueWithoutNotify(Canvas.BackgroundColor);
-            Canvas.SelectedLayerChangedEvent += () => _layers.Select(Canvas.SelectedLayer?.Item);
-            Canvas.SelectedFrameChangedEvent += () => _frames.Select(Canvas.SelectedFrame?.Item);
-            Canvas.SelectedAnimationChangedEvent += () =>
+            Canvas.ActiveLayerChangedEvent += () => _layers.Select(Canvas.ActiveLayer?.Item);
+            Canvas.ActiveFrameChangedEvent += () => _frames.Select(Canvas.ActiveFrame?.Item);
+            Canvas.ActiveAnimationChangedEvent += () =>
             {
                 RefreshAnimationList();
                 RefreshFrameList();
@@ -152,7 +152,7 @@ namespace NoZ.PA
 
                 Canvas.RefreshImage();
             };
-            _layers.onItemSelected += (i) => Canvas.SelectedLayer = ((PALayerItem)_layers.ItemAt(i)).Layer;
+            _layers.onItemSelected += (i) => Canvas.ActiveLayer = ((PALayerItem)_layers.ItemAt(i)).Layer;
             layersScrollView.contentContainer.Add(_layers);
 
             toolbarSpacer = new VisualElement();
@@ -197,7 +197,7 @@ namespace NoZ.PA
 
                 Canvas.RefreshImage();
             };
-            _frames.onItemSelected += (i) => Canvas.SelectedFrame = ((PAFrameItem)_frames.ItemAt(i)).Frame;
+            _frames.onItemSelected += (i) => Canvas.ActiveFrame = ((PAFrameItem)_frames.ItemAt(i)).Frame;
 
             framesScrollView.contentContainer.Add(_frames);            
 
@@ -232,7 +232,7 @@ namespace NoZ.PA
             Target = target;
 
             Canvas.File = PAFile.Load(AssetDatabase.GetAssetPath(target));
-            Canvas.SelectedTool = Canvas.PencilTool;
+            Canvas.ActiveTool = Canvas.PencilTool;
 
             RefreshFrameList();
             RefreshLayersList();
@@ -279,22 +279,22 @@ namespace NoZ.PA
 
             // Tool buttons
             var selectionToolButton = PAUtils.CreateIconToggle("SelectionToolToggle", "Rectangular Marquee Tool (M)", (v) => 
-                { if (v) Canvas.SelectedTool = Canvas.SelectionTool; });
+                { if (v) Canvas.ActiveTool = Canvas.SelectionTool; });
             selectionToolButton.userData = typeof(PASelectionTool);
             Toolbox.Add(selectionToolButton);
 
             var pencilToolButton = PAUtils.CreateIconToggle("PencilToolToggle", "Pencil Tool (B)", (v) => {
-                if (v) Canvas.SelectedTool = Canvas.PencilTool; });
+                if (v) Canvas.ActiveTool = Canvas.PencilTool; });
             pencilToolButton.userData = typeof(PAPencilTool);
             Toolbox.Add(pencilToolButton);
 
             var eraserToolButton = PAUtils.CreateIconToggle("EraserToolToggle", "Eraser Tool (E)", (v) => {
-                if (v) Canvas.SelectedTool = Canvas.EraserTool;});
+                if (v) Canvas.ActiveTool = Canvas.EraserTool;});
             eraserToolButton.userData = typeof(PAEraserTool);
             Toolbox.Add(eraserToolButton);            
 
             var eyeDropperToolButton = PAUtils.CreateIconToggle("EyeDropperToolToggle", "Eyedropper Tool (I)", (v) => {
-                if (v) Canvas.SelectedTool = Canvas.EyeDropperTool; });
+                if (v) Canvas.ActiveTool = Canvas.EyeDropperTool; });
             eyeDropperToolButton.userData = typeof(PAEyeDropperTool);
             Toolbox.Add(eyeDropperToolButton);
 
@@ -349,7 +349,7 @@ namespace NoZ.PA
             if (null == Canvas.File)
                 return;
 
-            foreach (var frame in Canvas.File.frames.Where(f => f.animation == Canvas.SelectedAnimation).OrderBy(f => f.order))
+            foreach (var frame in Canvas.File.frames.Where(f => f.animation == Canvas.ActiveAnimation).OrderBy(f => f.order))
                 _frames.AddItem(new PAFrameItem(frame));
 
             _deleteFrameButton.SetEnabled(_frames.itemCount > 1);
@@ -360,7 +360,7 @@ namespace NoZ.PA
             Undo.Record("Add Layer");
             var addedLayer = Canvas.File.AddLayer();
             RefreshLayersList();
-            Canvas.SelectedLayer = addedLayer;
+            Canvas.ActiveLayer = addedLayer;
             Canvas.RefreshImage();
         }
 
@@ -372,8 +372,8 @@ namespace NoZ.PA
 
             Undo.Record("Delete Layer");
 
-            var order = Canvas.SelectedLayer.order;
-            Canvas.File.DeleteLayer(Canvas.SelectedLayer);
+            var order = Canvas.ActiveLayer.order;
+            Canvas.File.DeleteLayer(Canvas.ActiveLayer);
             RefreshLayersList();
             _layers.Select(Mathf.Clamp(Canvas.File.layers.Count - order - 1, 0, Canvas.File.layers.Count - 1));
 
@@ -387,7 +387,7 @@ namespace NoZ.PA
         private void AddFrame()
         {
             Undo.Record("Add Frame");
-            Canvas.File.AddFrame(Canvas.SelectedAnimation);
+            Canvas.File.AddFrame(Canvas.ActiveAnimation);
             RefreshFrameList();
         }
 
@@ -401,9 +401,9 @@ namespace NoZ.PA
 
             Undo.Record("Duplicate Frame");
 
-            var frame = Canvas.File.InsertFrame(Canvas.SelectedAnimation, Canvas.SelectedFrame.order + 1);
+            var frame = Canvas.File.InsertFrame(Canvas.ActiveAnimation, Canvas.ActiveFrame.order + 1);
             Canvas.File.images.AddRange(
-                Canvas.File.images.Where(i => i.frame == Canvas.SelectedFrame).Select(i => new PAImage
+                Canvas.File.images.Where(i => i.frame == Canvas.ActiveFrame).Select(i => new PAImage
                 {
                     frame = frame,
                     layer = i.layer,
@@ -411,7 +411,7 @@ namespace NoZ.PA
                 }).ToList());
 
             RefreshFrameList();
-            Canvas.SelectedFrame = frame;
+            Canvas.ActiveFrame = frame;
         }
 
         /// <summary>
@@ -425,8 +425,8 @@ namespace NoZ.PA
 
             Undo.Record("Delete Frame");
 
-            var order = Canvas.SelectedFrame.order;
-            Canvas.File.DeleteFrame(Canvas.SelectedFrame);
+            var order = Canvas.ActiveFrame.order;
+            Canvas.File.DeleteFrame(Canvas.ActiveFrame);
             RefreshFrameList();
             _frames.Select(Mathf.Min(order, Canvas.File.frames.Count - 1));
             Canvas.RefreshImage();            
@@ -444,12 +444,12 @@ namespace NoZ.PA
 
             foreach (var animation in Canvas.File.animations)
                 _animations.menu.AppendAction(animation.name,
-                    (a) => Canvas.SelectedAnimation = animation, 
-                    (m) => animation == Canvas.SelectedAnimation ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
+                    (a) => Canvas.ActiveAnimation = animation, 
+                    (m) => animation == Canvas.ActiveAnimation ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
 
             _animations.menu.AppendSeparator();
             _animations.menu.AppendAction("Create New Animation...", (a) => AddAnimation(), DropdownMenuAction.Status.Normal);
-            _animations.text = Canvas.SelectedAnimation?.name;
+            _animations.text = Canvas.ActiveAnimation?.name;
         }
 
         /// <summary>
@@ -458,7 +458,7 @@ namespace NoZ.PA
         private void AddAnimation()
         {
             Undo.Record("New Animation");
-            Canvas.SelectedAnimation = Canvas.File.AddAnimation("New Animation");
+            Canvas.ActiveAnimation = Canvas.File.AddAnimation("New Animation");
             RefreshAnimationList();
         }
 
@@ -469,7 +469,7 @@ namespace NoZ.PA
         {
             UnityEditor.PopupWindow.Show(
                 _animationOptionsButton.worldBound, 
-                new PAAnimationOptions(this, Canvas.SelectedAnimation));
+                new PAAnimationOptions(this, Canvas.ActiveAnimation));
         }
 
         /// <summary>
@@ -482,7 +482,7 @@ namespace NoZ.PA
             {
                 var toggle = child as Toggle;
                 if (toggle != null)
-                    toggle.value = (Type)child.userData == Canvas.SelectedTool.GetType();
+                    toggle.value = (Type)child.userData == Canvas.ActiveTool.GetType();
             }
         }
 
@@ -536,9 +536,9 @@ namespace NoZ.PA
             if (!IsPlaying)
                 return;
             
-            Canvas.SelectedFrame = Canvas.File.FindNextFrame(Canvas.SelectedFrame);
+            Canvas.ActiveFrame = Canvas.File.FindNextFrame(Canvas.ActiveFrame);
             _playingScheduledItem = this.schedule.Execute(PlayNextFrame);
-            _playingScheduledItem.ExecuteLater(1000 / Math.Max(1,Canvas.SelectedAnimation.fps));
+            _playingScheduledItem.ExecuteLater(1000 / Math.Max(1,Canvas.ActiveAnimation.fps));
         }
 
         private void OnPlay()
@@ -552,7 +552,7 @@ namespace NoZ.PA
 
             if(IsPlaying)
             {
-                _playFrame = Canvas.SelectedFrame;
+                _playFrame = Canvas.ActiveFrame;
                 PlayNextFrame();
 
                 _layers.SetEnabled(false);
@@ -565,7 +565,7 @@ namespace NoZ.PA
             else if (null != _playingScheduledItem)
             {
                 _playingScheduledItem.Pause();
-                Canvas.SelectedFrame = _playFrame;
+                Canvas.ActiveFrame = _playFrame;
 
                 _layers.SetEnabled(true);
                 _frames.SetEnabled(true);

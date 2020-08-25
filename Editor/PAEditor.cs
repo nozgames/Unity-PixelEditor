@@ -196,6 +196,14 @@ namespace NoZ.PA
             fileMenu.menu.AppendAction("Close", (a) => CloseFile(), (a) => Workspace != null ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
             Toolbar.Add(fileMenu);
 
+            // Select menu
+            var selectMenu = new ToolbarMenu();
+            selectMenu.text = "Select";
+            selectMenu.menu.AppendAction("All\tCtrl+A", (a) => Workspace?.Canvas.SelectAll(), (a) => Workspace?.Canvas != null ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            selectMenu.menu.AppendAction("Deselect\tCtrl+D", (a) => Workspace?.Canvas.ClearSelection(), (a) => (Workspace?.Canvas?.HasSelection??false) ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            selectMenu.menu.AppendAction("Inverse\tCtrl+Shift+I", (a) => Workspace?.Canvas?.SelectInverse(), (a) => Workspace?.Canvas != null ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            Toolbar.Add(selectMenu);
+
             return Toolbar;
         }
 

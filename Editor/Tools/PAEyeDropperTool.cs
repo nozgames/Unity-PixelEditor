@@ -42,7 +42,7 @@ namespace NoZ.PA
             if (button == MouseButton.MiddleMouse)
                 return;
 
-            var target = Canvas.File.FindImage(Canvas.SelectedFrame, Canvas.SelectedLayer);
+            var target = Canvas.File.FindImage(Canvas.ActiveFrame, Canvas.ActiveLayer);
             if (null == target)
                 return;
 
