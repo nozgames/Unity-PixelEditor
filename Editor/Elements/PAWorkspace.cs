@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -576,7 +577,7 @@ namespace NoZ.PA
             }
         }
 
-        private void OnKeyDown(KeyDownEvent evt)
+        public void OnKeyDown(KeyDownEvent evt)
         {
             switch(evt.keyCode)
             {
@@ -584,7 +585,14 @@ namespace NoZ.PA
                     OnPlay();
                     evt.StopImmediatePropagation();
                     break;
+
+                default:
+                    Canvas?.OnKeyDown(evt);
+                    break;
             }
+            
+
+
         }
     }
 }

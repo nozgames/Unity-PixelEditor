@@ -69,6 +69,8 @@ namespace NoZ.PA
 
             rootVisualElement.Add(CreateToolbar());
 
+            rootVisualElement.RegisterCallback<KeyDownEvent>((evt) => Workspace?.OnKeyDown(evt));
+
             if (_previousTarget != null)
             {
                 OpenFile(_previousTarget);

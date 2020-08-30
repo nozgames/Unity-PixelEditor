@@ -59,7 +59,7 @@ namespace NoZ.PA
         /// <summary>
         /// Set the cursor to the appropriate cursor for the given position
         /// </summary>
-        public virtual void SetCursor (Vector2Int canvasPosition)
+        public virtual void SetCursor (Vector2 canvasPosition)
         {
             Canvas.SetCursor(MouseCursor.Arrow);
         }

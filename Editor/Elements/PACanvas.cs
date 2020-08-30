@@ -343,6 +343,9 @@ namespace NoZ.PA
         public Vector2 ImageToCanvas(Vector2Int imagePosition) =>
             ImageRect.min + (Vector2)imagePosition * Zoom;
 
+        public Rect ImageToCanvas(RectInt imageRect) =>
+            new Rect(ImageToCanvas(imageRect.min), ImageToCanvas(imageRect.max) - ImageToCanvas(imageRect.min));
+
         /// <summary>
         /// Convert the image coordinate to a texture coordinate
         /// </summary>
@@ -468,8 +471,7 @@ namespace NoZ.PA
             ActiveTool?.OnMouseMove(PAMouseEvent.Create(this, evt));
 
             _lastMousePosition = evt.localMousePosition;
-            var canvasPosition = CanvasToImage(evt.localMousePosition);
-
+            
             if (IsDrawing)
             {
                 _drawLast = evt.localMousePosition;
@@ -482,7 +484,7 @@ namespace NoZ.PA
                 ActiveTool?.OnDrawStart(PADrawEvent.Create(this, evt, (MouseButton)_drawButton, _drawStart));
             }
 
-            ActiveTool?.SetCursor(canvasPosition);
+            ActiveTool?.SetCursor(evt.localMousePosition);
         }
 
         /// <summary>
@@ -650,7 +652,7 @@ namespace NoZ.PA
         }
 
 
-        private void OnKeyDown(KeyDownEvent evt)
+        public void OnKeyDown(KeyDownEvent evt)
         {
             // Send the key to the current tool
             if (!ActiveTool?.OnKeyDown(PAKeyEvent.Create(evt)) ?? true)

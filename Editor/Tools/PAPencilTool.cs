@@ -18,7 +18,7 @@ namespace NoZ.PA
             _cursor = PAUtils.LoadCursor("Pencil.psd");
         }
 
-        public override void SetCursor(Vector2Int canvasPosition)
+        public override void SetCursor(Vector2 canvasPosition)
         {
             Canvas.SetCursor(_cursor, _cursorHotspot);
         }

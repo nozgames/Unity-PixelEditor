@@ -143,7 +143,7 @@ namespace NoZ.PA
                 return false;
             }
 
-            contentRect = new RectInt(min, max - min);
+            contentRect = new RectInt(min, max - min + Vector2Int.one);
             return true;
         }
 

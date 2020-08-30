@@ -16,7 +16,7 @@ namespace NoZ.PA
             IsEnabledDuringPlay = true;
         }
 
-        public override void SetCursor(Vector2Int canvasPosition)
+        public override void SetCursor(Vector2 canvasPosition)
         {
             Canvas.SetCursor(MouseCursor.Pan);
         }

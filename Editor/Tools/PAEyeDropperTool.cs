@@ -19,7 +19,7 @@ namespace NoZ.PA
             _cursor = PAUtils.LoadCursor("EyeDropper.psd");
         }
 
-        public override void SetCursor(Vector2Int canvasPosition) =>
+        public override void SetCursor(Vector2 canvasPosition) =>
             Canvas.SetCursor(_cursor, _cursorHotspot);
 
         public override void OnDrawStart(PADrawEvent evt) =>
